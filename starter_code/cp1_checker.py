@@ -32,6 +32,7 @@ RECV_EACH_TIMEOUT = 0.05
 for i in xrange(numConnections):
     s = socket(AF_INET, SOCK_STREAM)
     s.connect((serverHost, serverPort))
+    print 'Connected ', i
     socketList.append(s)
 
 
@@ -46,9 +47,11 @@ for i in xrange(numTrials):
         randomLen.append(random_len)
         randomData.append(random_string)
         socketSubset[j].send(random_string)
+        print 'Sent: ' + random_string
 
     for j in xrange(numWritesReads):
         data = socketSubset[j].recv(randomLen[j])
+        print 'Received: ' + data
         start_time = time.time()
         while True:
             if len(data) == randomLen[j]:

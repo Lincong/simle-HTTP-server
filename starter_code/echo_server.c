@@ -11,116 +11,187 @@
 *                                                                             *
 *******************************************************************************/
 
-#include <netinet/in.h>
 #include "utility.h"
-#include <netinet/ip.h>
-#include <sys/socket.h>
-#include <unistd.h>
+#include "message.h"
 
-int close_socket(int sock)
-{
-    if (close(sock))
-    {
-        fprintf(stderr, "Failed closing socket.\n");
-        return 1;
-    }
-    return 0;
-}
+int echo_sock_fd; // a file descriptor for our "listening" socket.
+peer_t connection_list[MAX_CLIENTS];
 
-/* Start listening socket listen_sock. */
-int start_listen_socket(int backlog_num, int reuse)
-{
-    int listen_sock; // a file descriptor for our "listening" socket.
-    if ((listen_sock = socket(PF_INET, SOCK_STREAM, 0)) == -1)
-    {
-        fprintf(stderr, "Failed creating socket.\n");
-        return EXIT_FAILURE;
-    }
-    if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) != 0) {
-        perror("Failed setting socket options");
-        return -1;
-    }
-    // create a struct storing address information for the socket
-    struct sockaddr_in sock_addr;
-    memset(&sock_addr, 0, sizeof(sock_addr));
-    sock_addr.sin_family = AF_INET;
-    sock_addr.sin_port = htons(ECHO_PORT); // use default echo server port
-    sock_addr.sin_addr.s_addr = INADDR_ANY;
-
-    // bind socket with the address
-    if (bind(listen_sock, (struct sockaddr *) &sock_addr, sizeof(sock_addr)))
-    {
-        close_socket(listen_sock);
-        fprintf(stderr, "Failed binding socket.\n");
-        return EXIT_FAILURE;
-    }
-    // listen(int socket, int backlog);
-    // The backlog parameter defines the maximum length for the queue
-    // of pending connections.
-    if (listen(listen_sock, backlog_num))
-    {
-        close_socket(listen_sock);
-        fprintf(stderr, "Error listening on socket.\n");
-        return EXIT_FAILURE;
-    }
-    printf("Accepting connections on port %d.\n", (int)ECHO_PORT);
-    return 0;
-}
+void server_shutdown_properly(int code);
+void handle_signal_action(int sig_number);
+int setup_signals();
+int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds);
 
 int main(int argc, char* argv[])
 {
-    int client_sock;
-    ssize_t readret;
-    socklen_t cli_size;
-    struct sockaddr_in cli_addr;
-    memset(&cli_addr, 0, sizeof(cli_addr));
-    char buf[BUF_SIZE];
+    if (setup_signals() != 0)
+        exit(EXIT_FAILURE);
 
-    fprintf(stdout, "----- Echo Server -----\n");
-    start_listen_socket(BACKLOG, SOCK_REUSE);
-    /* finally, loop waiting for input and then write it back */
-    while (1)
-    {
-       cli_size = sizeof(cli_addr);
-       if ((client_sock = accept(sock, (struct sockaddr *) &cli_addr,
-                                 &cli_size)) == -1)
-       {
-           close(sock);
-           fprintf(stderr, "Error accepting connection.\n");
-           return EXIT_FAILURE;
-       }
-       
-       readret = 0;
+    if (start_listen_socket(BACKLOG, SOCK_REUSE, &echo_sock_fd) != 0)
+        exit(EXIT_FAILURE);
 
-       while((readret = recv(client_sock, buf, BUF_SIZE, 0)) >= 1)
-       {
-           if (send(client_sock, buf, readret, 0) != readret)
-           {
-               close_socket(client_sock);
-               close_socket(sock);
-               fprintf(stderr, "Error sending to client.\n");
-               return EXIT_FAILURE;
-           }
-           memset(buf, 0, BUF_SIZE);
-       } 
+    /* Set nonblock for stdin. */
+//    int flag = fcntl(STDIN_FILENO, F_GETFL, 0);
+//    flag |= O_NONBLOCK;
+//    fcntl(STDIN_FILENO, F_SETFL, flag);
 
-       if (readret == -1)
-       {
-           close_socket(client_sock);
-           close_socket(sock);
-           fprintf(stderr, "Error reading from client socket.\n");
-           return EXIT_FAILURE;
-       }
-
-       if (close_socket(client_sock))
-       {
-           close_socket(sock);
-           fprintf(stderr, "Error closing client socket.\n");
-           return EXIT_FAILURE;
-       }
+    int i;
+    for (i = 0; i < MAX_CLIENTS; ++i) {
+        connection_list[i].socket = NO_SOCKET;
+        create_peer(&connection_list[i]);
     }
 
-    close_socket(sock);
+    fd_set read_fds;
+    fd_set write_fds;
+    fd_set except_fds;
+
+    int high_sock = echo_sock_fd;
+    LOG("Waiting for incoming connections.");
+
+    // loop waiting for input and then write it back
+    while (1)
+    {
+        LOG("Building fd sets...");
+        build_fd_sets(echo_sock_fd, &read_fds, &write_fds, &except_fds);
+        LOG("Done");
+
+        LOG("Get highest socket number...");
+        high_sock = echo_sock_fd;
+        for (i = 0; i < MAX_CLIENTS; ++i) {
+            if (connection_list[i].socket > high_sock)
+                high_sock = connection_list[i].socket;
+        }
+        LOG("Done");
+
+        LOG("Selecting");
+        int activity = select(high_sock + 1, &read_fds, &write_fds, &except_fds, NULL);
+        LOG("Done");
+
+        switch (activity) {
+            case -1:
+                perror("select()");
+                server_shutdown_properly(EXIT_FAILURE);
+
+            case 0:
+                // you should never get here
+                printf("select() returns 0.\n");
+                server_shutdown_properly(EXIT_FAILURE);
+
+            default:
+                /* All set fds should be checked. */
+//                if (FD_ISSET(STDIN_FILENO, &read_fds)) {
+//                    if (handle_read_from_stdin() != 0)
+//                        server_shutdown_properly(EXIT_FAILURE);
+//                }
+
+                if (FD_ISSET(echo_sock_fd, &read_fds)) {
+                    handle_new_connection(echo_sock_fd, connection_list);
+                }
+
+                if (FD_ISSET(STDIN_FILENO, &except_fds)) {
+                    printf("except_fds for stdin.\n");
+                    server_shutdown_properly(EXIT_FAILURE);
+                }
+
+                if (FD_ISSET(echo_sock_fd, &except_fds)) {
+                    printf("Exception listen socket fd.\n");
+                    server_shutdown_properly(EXIT_FAILURE);
+                }
+
+                for (i = 0; i < MAX_CLIENTS; ++i) {
+                    if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &read_fds)) {
+                        if (receive_from_peer(&connection_list[i], &handle_received_message) != 0) {
+                            close_client_connection(&connection_list[i]);
+                            continue;
+                        }
+                    }
+
+                    if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &write_fds)) {
+                        if (send_to_peer(&connection_list[i]) != 0) {
+                            close_client_connection(&connection_list[i]);
+                            continue;
+                        }
+                    }
+
+                    if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &except_fds)) {
+                        printf("Exception client fd.\n");
+                        close_client_connection(&connection_list[i]);
+                        continue;
+                    }
+                }
+        }
+
+        printf("And we are still waiting for clients' or stdin activity. You can type something to send:\n");
+    }
 
     return EXIT_SUCCESS;
+}
+
+void server_shutdown_properly(int code)
+{
+    int i;
+
+    close(echo_sock_fd);
+
+    for (i = 0; i < MAX_CLIENTS; ++i)
+        if (connection_list[i].socket != NO_SOCKET)
+            close(connection_list[i].socket);
+
+    printf("Shutdown server properly.\n");
+    exit(code);
+}
+
+
+void handle_signal_action(int sig_number)
+{
+    if (sig_number == SIGINT) {
+        printf("SIGINT was catched!\n");
+        server_shutdown_properly(EXIT_SUCCESS);
+    }
+    else if (sig_number == SIGPIPE) {
+        printf("SIGPIPE was catched!\n");
+        server_shutdown_properly(EXIT_SUCCESS);
+    }
+}
+
+int setup_signals()
+{
+    struct sigaction sa;
+    sa.sa_handler = handle_signal_action;
+    if (sigaction(SIGINT, &sa, 0) != 0) {
+        perror("sigaction()");
+        return -1;
+    }
+    if (sigaction(SIGPIPE, &sa, 0) != 0) {
+        perror("sigaction()");
+        return -1;
+    }
+
+    return 0;
+}
+
+int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
+{
+    int i;
+
+    FD_ZERO(read_fds);
+    FD_SET(STDIN_FILENO, read_fds);
+    FD_SET(listen_sock, read_fds);
+    for (i = 0; i < MAX_CLIENTS; ++i)
+        if (connection_list[i].socket != NO_SOCKET)
+            FD_SET(connection_list[i].socket, read_fds);
+
+    FD_ZERO(write_fds);
+    for (i = 0; i < MAX_CLIENTS; ++i)
+        if (connection_list[i].socket != NO_SOCKET && connection_list[i].send_buffer.current > 0)
+            FD_SET(connection_list[i].socket, write_fds);
+
+    FD_ZERO(except_fds);
+    FD_SET(STDIN_FILENO, except_fds);
+    FD_SET(listen_sock, except_fds);
+    for (i = 0; i < MAX_CLIENTS; ++i)
+        if (connection_list[i].socket != NO_SOCKET)
+            FD_SET(connection_list[i].socket, except_fds);
+
+    return 0;
 }

@@ -8,10 +8,12 @@
 #                                                                              #
 ################################################################################
 
+SERVER_SRC = echo_server.c utility.c message.c
+
 default: echo_server echo_client
 
 echo_server:
-	@gcc echo_server.c -o echo_server -Wall -Werror
+	@gcc $(SERVER_SRC) -o echo_server -Wall -Werror
 
 echo_client:
 	@gcc echo_client.c -o echo_client -Wall -Werror
