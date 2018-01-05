@@ -78,11 +78,6 @@ int main(int argc, char* argv[])
                 server_shutdown_properly(EXIT_FAILURE);
 
             default:
-                /* All set fds should be checked. */
-//                if (FD_ISSET(STDIN_FILENO, &read_fds)) {
-//                    if (handle_read_from_stdin() != 0)
-//                        server_shutdown_properly(EXIT_FAILURE);
-//                }
 
                 if (FD_ISSET(echo_sock_fd, &read_fds)) {
                     handle_new_connection(echo_sock_fd, connection_list);
@@ -133,10 +128,10 @@ void server_shutdown_properly(int code)
 
     close(echo_sock_fd);
 
-    for (i = 0; i < MAX_CLIENTS; ++i)
+    for (i = 0; i < MAX_CLIENTS; ++i) {
         if (connection_list[i].socket != NO_SOCKET)
-            close(connection_list[i].socket);
-
+            delete_peer(&connection_list[i]); // de-allocate memory for each peer
+    }
     printf("Shutdown server properly.\n");
     exit(code);
 }

@@ -26,16 +26,16 @@ typedef struct {
     char data[DATA_MAXSIZE];
 }  message_t;
 
-int prepare_message(char *sender, char *data, message_t *message)
-{
-    sprintf(message->sender, "%s", sender);
-    sprintf(message->data, "%s", data);
-    return 0;
-}
+//int prepare_message(char *sender, char *data, message_t *message)
+//{
+//    sprintf(message->sender, "%s", sender);
+//    sprintf(message->data, "%s", data);
+//    return 0;
+//}
 
 int print_message(message_t *message)
 {
-    printf("Message: \"%s: %s\"\n", message->sender, message->data);
+    printf("Message: %s\n", message->data);
     return 0;
 }
 
@@ -145,7 +145,7 @@ int peer_add_to_send(peer_t *peer, message_t *message)
 }
 
 /* Receive message from peer and handle it with message_handler(). */
-int receive_from_peer(peer_t *peer, int (*message_handler)(message_t *))
+int receive_from_peer(peer_t *peer, int (*message_handler)(message_t *, ssize_t))
 {
     printf("Ready for recv() from %s.\n", peer_get_addres_str(peer));
 

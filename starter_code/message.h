@@ -15,17 +15,16 @@
 /* Size of send queue (messages). */
 #define MAX_MESSAGES_BUFFER_SIZE 10
 
-#define SENDER_MAXSIZE 128
-#define DATA_MAXSIZE 512
+#define DATA_MAXSIZE_IN_KB 1
+#define DATA_MAXSIZE 1024 * DATA_MAXSIZE_IN_KB
 
 // message --------------------------------------------------------------------
 
 typedef struct {
-    char sender[SENDER_MAXSIZE];
     char data[DATA_MAXSIZE];
+    int msg_size; // how many bytes are in this message (max == DATA_MAXSIZE)
 }  message_t;
 
-int prepare_message(char *sender, char *data, message_t *message);
 int print_message(message_t *message);
 
 // message queue --------------------------------------------------------------
@@ -58,7 +57,7 @@ typedef struct {
      */
     message_t sending_buffer;
     int current_sending_byte;
-
+    bool ready_to_send;
     /* The same for the receiving message. */
     message_t receiving_buffer;
     size_t current_receiving_byte;
@@ -69,14 +68,14 @@ int delete_peer(peer_t *peer);
 char *peer_get_addres_str(peer_t *peer);
 int peer_add_to_send(peer_t *peer, message_t *message);
 /* Receive message from peer and handle it with message_handler(). */
-int receive_from_peer(peer_t *peer, int (*message_handler)(message_t *));
+int receive_from_peer(peer_t *peer, int (*message_handler)(message_t *, ssize_t));
 int send_to_peer(peer_t *peer);
 
 // connection -----------------------------------------------------------------
 
 int handle_new_connection(int listen_sock, peer_t connection_list[]);
 int close_client_connection(peer_t *client);
-int handle_received_message(message_t *message);
+int handle_received_message(message_t *message, ssize_t received_num);
 //int handle_read_from_stdin();
 
 #endif //SERVER_MESSAGE_H
