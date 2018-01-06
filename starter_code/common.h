@@ -16,6 +16,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #define MAX_CLIENTS 100
 #define NO_SOCKET -1
@@ -24,7 +25,6 @@
 /* Maximum bytes that can be send() or recv() via net by one call.
  * It's a good idea to test sending one byte by one.
  */
-#define MAX_SEND_SIZE 100
 #define ECHO_PORT 9999
 #define BUF_SIZE 4096
 #define BACKLOG  10
