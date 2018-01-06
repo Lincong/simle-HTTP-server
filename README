@@ -1,1 +1,12 @@
 This HTTPs server is created for the purpose of practicing coding. 
+There are 3 checkpoints.
+Checkpoint 1 is to create a server that echos data stream from the client
+Checkpoint 2 is to modify the echo server to be a HTTP server
+Checkpoint 3 is to add SSL and CGI to the HTTP server
+
+To run checkpoint 1:
+cd src
+./make_run
+
+// in another terminal tab
+python cp1_checker.py 127.0.0.1 9999 5 50 100000 50
