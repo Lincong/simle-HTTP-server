@@ -73,13 +73,11 @@ size_t read_from_receiving_buffer(peer_t *peer, char data[], size_t bytes_read);
 void reset_sending_buff(peer_t *peer);
 void reset_receiving_buff(peer_t *peer);
 
-
 // connection -----------------------------------------------------------------
 
 int handle_new_connection(int listen_sock, peer_t connection_list[]);
 int close_client_connection(peer_t *client);
-int handle_received_message(peer_t *client);
+int print_received_message(peer_t *client);
 int echo_received_message(peer_t *client);
-//int handle_read_from_stdin();
 
 #endif //SERVER_MESSAGE_H

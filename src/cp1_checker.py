@@ -42,8 +42,10 @@ for i in xrange(numTrials):
     randomLen = []
     socketSubset = random.sample(socketList, numConnections)
     for j in xrange(numWritesReads):
-        random_len = 12 # random.randrange(1, numBytes)
-        random_string = 'abcdefghijkl'# os.urandom(random_len)
+        # random_len = 12 # random.randrange(1, numBytes)
+        # random_string = 'abcdefghijkl'# os.urandom(random_len)
+        random_len = random.randrange(1, numBytes)
+        random_string = os.urandom(random_len)
         randomLen.append(random_len)
         randomData.append(random_string)
         socketSubset[j].send(random_string)

@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
         }
         LOG("Done");
 
-        LOG("Selecting");
+        LOG("Selecting...");
         int activity = select(high_sock + 1, &read_fds, &write_fds, &except_fds, NULL);
         LOG("Done");
 
@@ -95,14 +95,14 @@ int main(int argc, char* argv[])
 
                 for (i = 0; i < MAX_CLIENTS; ++i) {
                     if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &read_fds)) {
-                        if (receive_from_peer(&connection_list[i], &handle_received_message) != 0) {
+                        if (receive_from_peer(&connection_list[i], &echo_received_message) != EXIT_SUCCESS) {
                             close_client_connection(&connection_list[i]);
                             continue;
                         }
                     }
 
                     if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &write_fds)) {
-                        if (send_to_peer(&connection_list[i]) != 0) {
+                        if (send_to_peer(&connection_list[i]) != EXIT_SUCCESS) {
                             close_client_connection(&connection_list[i]);
                             continue;
                         }
