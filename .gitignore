@@ -1,3 +1,5 @@
 .idea
 *.o
 cmake-build-debug
+CMakeLists.*
+starter_code_2
