@@ -12,7 +12,8 @@
 *******************************************************************************/
 
 #include "utility.h"
-#include "message.h"
+#include "connection_handlers.h"
+#include "logger.h"
 
 int echo_sock_fd; // a file descriptor for our "listening" socket.
 peer_t connection_list[MAX_CLIENTS];
@@ -24,48 +25,39 @@ int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *
 
 int main(int argc, char* argv[])
 {
+    SERVER_LOG("%s", "Setting up signal handlers...")
     if (setup_signals() != 0)
         exit(EXIT_FAILURE);
+    SERVER_LOG("%s", "Done")
 
     if (start_listen_socket(BACKLOG, SOCK_REUSE, &echo_sock_fd) != 0)
         exit(EXIT_FAILURE);
 
-    /* Set nonblock for stdin. */
-//    int flag = fcntl(STDIN_FILENO, F_GETFL, 0);
-//    flag |= O_NONBLOCK;
-//    fcntl(STDIN_FILENO, F_SETFL, flag);
-
+    SERVER_LOG("%s", "Initializing peers...")
     int i;
     for (i = 0; i < MAX_CLIENTS; ++i) {
         connection_list[i].socket = NO_SOCKET;
         create_peer(&connection_list[i]);
     }
+    SERVER_LOG("%s", "Done")
 
     fd_set read_fds;
     fd_set write_fds;
     fd_set except_fds;
 
     int high_sock = echo_sock_fd;
-    LOG("Waiting for incoming connections.");
 
     // loop waiting for input and then write it back
     while (1)
     {
-        LOG("Building fd sets...");
         build_fd_sets(echo_sock_fd, &read_fds, &write_fds, &except_fds);
-        LOG("Done");
-
-        LOG("Get highest socket number...");
         high_sock = echo_sock_fd;
         for (i = 0; i < MAX_CLIENTS; ++i) {
             if (connection_list[i].socket > high_sock)
                 high_sock = connection_list[i].socket;
         }
-        LOG("Done");
-
-        LOG("Selecting...");
+        SERVER_LOG("%s", "Selecting...")
         int activity = select(high_sock + 1, &read_fds, &write_fds, &except_fds, NULL);
-        LOG("Done");
 
         switch (activity) {
             case -1:
@@ -74,7 +66,7 @@ int main(int argc, char* argv[])
 
             case 0:
                 // you should never get here
-                printf("select() returns 0.\n");
+                fprintf(stderr, "select() returns 0.\n");
                 server_shutdown_properly(EXIT_FAILURE);
 
             default:
@@ -84,12 +76,12 @@ int main(int argc, char* argv[])
                 }
 
                 if (FD_ISSET(STDIN_FILENO, &except_fds)) {
-                    printf("except_fds for stdin.\n");
+                    SERVER_LOG("%s", "except_fds for stdin.")
                     server_shutdown_properly(EXIT_FAILURE);
                 }
 
                 if (FD_ISSET(echo_sock_fd, &except_fds)) {
-                    printf("Exception listen socket fd.\n");
+                    SERVER_LOG("%s", "Exception listen socket fd.")
                     server_shutdown_properly(EXIT_FAILURE);
                 }
 
@@ -109,16 +101,13 @@ int main(int argc, char* argv[])
                     }
 
                     if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &except_fds)) {
-                        printf("Exception client fd.\n");
+                        SERVER_LOG("%s", "Exception client fd.")
                         close_client_connection(&connection_list[i]);
                         continue;
                     }
                 }
         }
-
-        printf("And we are still waiting for clients' or stdin activity. You can type something to send:\n");
     }
-
     return EXIT_SUCCESS;
 }
 
@@ -136,6 +125,31 @@ void server_shutdown_properly(int code)
     exit(code);
 }
 
+int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
+{
+    int i;
+
+    FD_ZERO(read_fds);
+    FD_SET(STDIN_FILENO, read_fds);
+    FD_SET(listen_sock, read_fds);
+    for (i = 0; i < MAX_CLIENTS; ++i)
+        if (connection_list[i].socket != NO_SOCKET)
+            FD_SET(connection_list[i].socket, read_fds);
+
+    FD_ZERO(write_fds);
+    for (i = 0; i < MAX_CLIENTS; ++i)
+        if (connection_list[i].socket != NO_SOCKET && connection_list[i].is_sending)
+            FD_SET(connection_list[i].socket, write_fds);
+
+    FD_ZERO(except_fds);
+    FD_SET(STDIN_FILENO, except_fds);
+    FD_SET(listen_sock, except_fds);
+    for (i = 0; i < MAX_CLIENTS; ++i)
+        if (connection_list[i].socket != NO_SOCKET)
+            FD_SET(connection_list[i].socket, except_fds);
+
+    return 0;
+}
 
 void handle_signal_action(int sig_number)
 {
@@ -161,32 +175,6 @@ int setup_signals()
         perror("sigaction()");
         return -1;
     }
-
-    return 0;
-}
-
-int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
-{
-    int i;
-
-    FD_ZERO(read_fds);
-    FD_SET(STDIN_FILENO, read_fds);
-    FD_SET(listen_sock, read_fds);
-    for (i = 0; i < MAX_CLIENTS; ++i)
-        if (connection_list[i].socket != NO_SOCKET)
-            FD_SET(connection_list[i].socket, read_fds);
-
-    FD_ZERO(write_fds);
-    for (i = 0; i < MAX_CLIENTS; ++i)
-        if (connection_list[i].socket != NO_SOCKET && connection_list[i].is_sending)
-            FD_SET(connection_list[i].socket, write_fds);
-
-    FD_ZERO(except_fds);
-    FD_SET(STDIN_FILENO, except_fds);
-    FD_SET(listen_sock, except_fds);
-    for (i = 0; i < MAX_CLIENTS; ++i)
-        if (connection_list[i].socket != NO_SOCKET)
-            FD_SET(connection_list[i].socket, except_fds);
 
     return 0;
 }

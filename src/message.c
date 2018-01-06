@@ -3,6 +3,7 @@
 //
 
 #include "message.h"
+#include "logger.h"
 /*
   __  __
  |  \/  |
@@ -72,7 +73,7 @@ size_t sending_buf_size(peer_t *peer)
 int write_to_sending_buffer(peer_t *peer, char data[], size_t num_bytes)
 {
     if(num_bytes > peer->sending_buf_size) {
-        perror("Trying to write too many bytes into sending buffer");
+        fprintf(stderr, "Trying to write too many bytes into sending buffer");
         return EXIT_FAILURE;
     }
     memcpy((char*)&peer->sending_buffer, data, num_bytes);
@@ -83,7 +84,7 @@ int write_to_sending_buffer(peer_t *peer, char data[], size_t num_bytes)
 int write_to_receiving_buffer(peer_t *peer, char data[], size_t num_bytes)
 {
     if(num_bytes > peer->available_receiving_buffer_byte){
-        perror("receiving buffer overflow");
+        fprintf(stderr, "receiving buffer overflow");
         return EXIT_FAILURE;
     }
     peer->available_receiving_buffer_byte -= num_bytes;
@@ -139,14 +140,14 @@ char *peer_get_addres_str(peer_t *peer)
 // for adjusting parameters of the receiving buffer
 int receive_from_peer(peer_t *peer, int (*message_handler)(peer_t *))
 {
-    printf("Ready for recv() from %s.\n", peer_get_addres_str(peer));
+    COMM_LOG("Ready for recv() from %s.", peer_get_addres_str(peer))
 
     size_t available_bytes;
     ssize_t received_count = 0; // has to be a signed size_t since recv might return negative value
     size_t received_total = 0;
     do {
-        LOG("received_count ");
-        printf("%ld\n", received_count);
+        COMM_LOG("%s", "received_count ")
+        COMM_LOG("%ld", received_count)
 
         if (received_count > 0) {
             if(message_handler(peer) != EXIT_SUCCESS)
@@ -154,17 +155,17 @@ int receive_from_peer(peer_t *peer, int (*message_handler)(peer_t *))
         }
         // Count bytes to send.
         available_bytes = peer->available_receiving_buffer_byte;
-        printf("Let's try to recv() %zd bytes...\n", available_bytes);
-        // temporary buffer
+        COMM_LOG("Let's try to recv() %zd bytes...", available_bytes)
+        // temporary buffer to receive bytes from the sys call
         char data[available_bytes];
 
         // actual receiving
         received_count = recv(peer->socket, (char *)data, available_bytes, MSG_DONTWAIT);
-        LOG("Received_count: ");
-        printf("%ld\n", received_count);
+        COMM_LOG("%s", "Received_count: ")
+        COMM_LOG("%ld", received_count)
         if (received_count < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                printf("peer is not ready right now, try again later.\n");
+                COMM_LOG("%s", "peer is not ready right now, try again later.")
                 break;
             }
             else {
@@ -174,18 +175,18 @@ int receive_from_peer(peer_t *peer, int (*message_handler)(peer_t *))
         }
         // If recv() returns 0, it means that peer gracefully shutdown. Shutdown client.
         else if (received_count == 0) {
-            printf("recv() 0 bytes. Peer gracefully shutdown.\n");
+            COMM_LOG("%s", "recv() 0 bytes. Peer gracefully shutdown.")
             return EXIT_FAILURE;
         }
         else if (received_count > 0) {
             if(write_to_receiving_buffer(peer, data, (size_t)received_count) != EXIT_SUCCESS)
                 return EXIT_FAILURE;
             received_total += received_count;
-            printf("recv() %zd bytes\n", received_count);
+            COMM_LOG("recv() %zd bytes.", received_count)
         }
     } while (received_count > 0);
 
-    printf("Total recv()'ed %zu bytes.\n", received_total);
+    COMM_LOG("Total recv()'ed %zu bytes.", received_total)
     reset_receiving_buff(peer);
     return EXIT_SUCCESS;
 }
@@ -194,52 +195,48 @@ int receive_from_peer(peer_t *peer, int (*message_handler)(peer_t *))
 int send_to_peer(peer_t *peer)
 {
     if(!peer->is_sending) return EXIT_SUCCESS; // not ready to be sent
-    printf("Ready for send() to %s.\n", peer_get_addres_str(peer));
+    COMM_LOG("Ready for send() to %s.", peer_get_addres_str(peer))
     ssize_t len_to_send;   // bytes that need to be sent
     size_t send_total = 0; // total number of bytes that have been sent
     ssize_t sent_count;    // bytes that have been sent at each iteration
     do {
         // Count bytes to send.
         len_to_send = peer->total_sending_bytes - peer->curr_sending_bytes;
-        printf("----------\n");
-        printf("peer->total_sending_bytes : %ld\n", peer->total_sending_bytes);
-        printf("peer->curr_sending_bytes : %ld\n", peer->curr_sending_bytes);
-        printf("len_to_send: %ld\n", len_to_send);
         assert( len_to_send >= 0 );
         if(len_to_send == 0){ // finish sending all bytes in the sending buffer
             reset_sending_buff(peer);
-            LOG("successfully finish sending!");
+            COMM_LOG("%s", "successfully finish sending!")
             break;
         }
 
         if (len_to_send > MAX_SEND_SIZE) // if the sending_buffer is too big, send it chunk by chunk
             len_to_send = MAX_SEND_SIZE;
 
-        printf("Let's try to send() %zd bytes...\n", len_to_send);
+        COMM_LOG("Let's try to send() %zd bytes...", len_to_send)
 
         // actual sending, should be blocking
         sent_count = send(peer->socket, (char *)&peer->sending_buffer + peer->curr_sending_bytes, len_to_send, 0);
+        COMM_LOG("%s", "Done sending!")
         if (sent_count < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                printf("peer is not ready right now, try again later.\n");
+                COMM_LOG("%s", "peer is not ready right now, try again later.")
                 sent_count = 0;
             } else {
-                perror("send() from peer error");
+                COMM_LOG("%s", "send() from peer error")
                 return EXIT_FAILURE;
             }
 
         } else if (sent_count == 0) {
-            LOG("send()'ed 0 bytes. It seems that peer can't accept data right now. Try again later.");
-            // break;
+            COMM_LOG("%s", "send()'ed 0 bytes. It seems that peer can't accept data right now. Try again later.")
 
         } else if (sent_count > 0) {
             peer->curr_sending_bytes += sent_count;
             send_total += sent_count;
-            printf("send()'ed %zd bytes.\n", sent_count);
+            COMM_LOG("send()'ed %zd bytes.", sent_count)
         }
     } while (sent_count > 0);
 
-    printf("Total send()'ed %zu bytes.\n", send_total);
+    COMM_LOG("Total send()'ed %zu bytes.", send_total)
     return EXIT_SUCCESS;
 }
 
@@ -261,12 +258,18 @@ int handle_new_connection(int listen_sock, peer_t connection_list[])
         perror("accept()");
         return -1;
     }
+    // set the socket to be non-blocking
+    int flags = fcntl(new_client_sock, F_GETFL, 0);
+    if (flags < 0) return false;
+    flags = flags | O_NONBLOCK;
+    assert(fcntl(new_client_sock, F_SETFL, flags) == EXIT_SUCCESS);
 
     char client_ipv4_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &client_addr.sin_addr, client_ipv4_str, INET_ADDRSTRLEN);
 
-    printf("Incoming connection from %s:%d.\n", client_ipv4_str, client_addr.sin_port);
-
+    COMM_LOG("%s", "Incoming connection from:")
+    COMM_LOG("IP: %s", client_ipv4_str)
+    COMM_LOG("Port: %d", client_addr.sin_port)
     // reuse the next available peer
     int i;
     for (i = 0; i < MAX_CLIENTS; ++i) {
@@ -277,14 +280,16 @@ int handle_new_connection(int listen_sock, peer_t connection_list[])
         }
     }
 
-    printf("There is too much connections. Close new connection %s:%d.\n", client_ipv4_str, client_addr.sin_port);
+    COMM_LOG("%s", "There is too much connections. Close")
+    COMM_LOG("IP: %s", client_ipv4_str)
+    COMM_LOG("Port: %d", client_addr.sin_port)
     close(new_client_sock);
     return -1;
 }
 
 int close_client_connection(peer_t *client)
 {
-    printf("Close client socket for %s.\n", peer_get_addres_str(client));
+    COMM_LOG("Close client socket for %s.", peer_get_addres_str(client))
 
     close(client->socket);
     client->socket = NO_SOCKET;
@@ -292,40 +297,4 @@ int close_client_connection(peer_t *client)
     reset_sending_buff(client);
     reset_receiving_buff(client);
     return 0;
-}
-
-int print_received_message(peer_t *client)
-{
-    // try to print all bytes the receiving buffer
-    size_t read_bytes_num = client->receiving_buf_size - client->available_receiving_buffer_byte;
-    char msg[read_bytes_num];
-    assert(read_bytes_num == read_from_receiving_buffer(client, msg, read_bytes_num));
-    printf("Received message from client.\n");
-    print_message(msg, read_bytes_num);
-    return EXIT_SUCCESS;
-}
-
-// echo handler
-int echo_received_message(peer_t *client)
-{
-    // copy bytes from receiving_buffer to sending buffer
-    // we can be sure that client is not sending at this point since the
-    // server is single thread. If the client is in the sending function,
-    // it won't return (unless errors occur) and the execution control
-    // won't reach here
-
-    // try to print all bytes the receiving buffer
-    size_t read_bytes_num = client->receiving_buf_size - client->available_receiving_buffer_byte;
-    char msg[read_bytes_num];
-    assert(read_bytes_num == read_from_receiving_buffer(client, msg, read_bytes_num));
-    printf("Received message from client.\n");
-    print_message(msg, read_bytes_num);
-
-    write_to_sending_buffer(client, msg, read_bytes_num);
-    // mark the client peer as ready to send
-    client->is_sending = true;
-    // send bytes to client
-    if(send_to_peer(client) != EXIT_SUCCESS)
-        return EXIT_FAILURE;
-    return EXIT_SUCCESS;
 }

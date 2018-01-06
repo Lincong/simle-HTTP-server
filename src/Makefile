@@ -8,7 +8,7 @@
 #                                                                              #
 ################################################################################
 
-SERVER_SRC = echo_server.c utility.c message.c
+SERVER_SRC = echo_server.c utility.c message.c connection_handlers.c
 
 default: echo_server echo_client
 

@@ -17,6 +17,7 @@
 #include <arpa/inet.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <fcntl.h>
 
 #define MAX_CLIENTS 100
 #define NO_SOCKET -1
@@ -30,6 +31,12 @@
 #define BACKLOG  10
 #define SOCK_REUSE 1
 
-#define LOG(msg) printf(msg); printf("\n");
+// parameters to turn on and off logging
+
+// server communication logging
+
+#define SERVER_LOG_ON true
+#define COMM_LOG_ON false
+#define HANDLER_LOG_ON false
 
 #endif //COMMON_H

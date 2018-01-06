@@ -13,7 +13,7 @@ int start_listen_socket(int backlog_num, int reuse, int* sock_fd)
         return EXIT_FAILURE;
     }
     if(setsockopt(*sock_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) != 0) {
-        perror("Failed setting socket options");
+        fprintf(stderr, "Failed setting socket options\n");
         return -1;
     }
     // create a struct storing address information for the socket
@@ -47,7 +47,7 @@ int close_socket(int sock_fd)
 {
     if (close(sock_fd))
     {
-        fprintf(stderr, "Failed closing socket.\n");
+        perror("Failed closing socket.\n");
         return 1;
     }
     return 0;

@@ -12,9 +12,6 @@
  */
 #define MAX_SEND_SIZE 512
 
-/* Size of send queue (messages). */
-#define MAX_MESSAGES_BUFFER_SIZE 10
-
 #define BUF_DATA_MAXSIZE_IN_KB 1
 #define BUF_DATA_MAXSIZE 1024 * BUF_DATA_MAXSIZE_IN_KB
 
@@ -77,7 +74,6 @@ void reset_receiving_buff(peer_t *peer);
 
 int handle_new_connection(int listen_sock, peer_t connection_list[]);
 int close_client_connection(peer_t *client);
-int print_received_message(peer_t *client);
-int echo_received_message(peer_t *client);
+void print_message(char* msg, size_t len);
 
 #endif //SERVER_MESSAGE_H

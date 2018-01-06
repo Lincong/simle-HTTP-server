@@ -25,9 +25,11 @@ if numConnections < numWritesReads:
 
 socketList = []
 
-RECV_TOTAL_TIMEOUT = 0.1
-RECV_EACH_TIMEOUT = 0.05
+# RECV_TOTAL_TIMEOUT = 0.1
+# RECV_EACH_TIMEOUT = 0.05
 
+RECV_TOTAL_TIMEOUT = 100
+RECV_EACH_TIMEOUT = 50
 
 for i in xrange(numConnections):
     s = socket(AF_INET, SOCK_STREAM)
@@ -49,11 +51,11 @@ for i in xrange(numTrials):
         randomLen.append(random_len)
         randomData.append(random_string)
         socketSubset[j].send(random_string)
-        print 'Sent: ' + random_string
+        # print 'Sent: ' + random_string
 
     for j in xrange(numWritesReads):
         data = socketSubset[j].recv(randomLen[j])
-        print 'Received: ' + data
+        # print 'Received: ' + data
         start_time = time.time()
         while True:
             if len(data) == randomLen[j]:
@@ -66,6 +68,8 @@ for i in xrange(numTrials):
         if data != randomData[j]:
             sys.stderr.write("Error: Data received is not the same as sent! \n")
             sys.exit(1)
+        else:
+            print 'Match'
 
 for i in xrange(numConnections):
     socketList[i].close()
