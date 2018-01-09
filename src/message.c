@@ -5,21 +5,132 @@
 #include "message.h"
 #include "logger.h"
 /*
-  __  __
- |  \/  |
- | \  / | ___  ___ ___  __ _  __ _  ___
- | |\/| |/ _ \/ __/ __|/ _` |/ _` |/ _ \
- | |  | |  __/\__ \__ \ (_| | (_| |  __/
- |_|  |_|\___||___/___/\__,_|\__, |\___|
-                              __/ |
-                             |___/
+ _            __  __
+| |          / _|/ _|
+| |__  _   _| |_| |_ ___ _ __
+| '_ \| | | |  _|  _/ _ \ '__|
+| |_) | |_| | | | ||  __/ |
+|_.__/ \__,_|_| |_| \___|_|
+
 */
 
-void print_message(char* msg, size_t len)
+int buf_reset(cbuf_t* cbuf)
+{
+    int ret = EXIT_FAILURE;
+    if(cbuf)
+    {
+        cbuf->head = 0;
+        cbuf->tail = 0;
+        cbuf->size = BUF_DATA_MAXSIZE;
+        cbuf->num_byte = 0;
+        ret = EXIT_SUCCESS;
+    }
+    return ret;
+}
+
+size_t buf_available(cbuf_t* cbuf)
+{
+    size_t ret = cbuf->size - cbuf->num_byte;
+    assert(ret >= 0);
+    return ret;
+}
+
+bool buf_empty(cbuf_t* cbuf)
+{
+    return (buf_available(cbuf) == cbuf->size);
+}
+
+bool buf_full(cbuf_t* cbuf)
+{
+    return (buf_available(cbuf) == 0);
+}
+
+// return one byte at a time
+int buf_put(cbuf_t * cbuf, uint8_t data)
+{
+    int ret = EXIT_FAILURE;
+
+    if(cbuf && !buf_full(cbuf))
+    {
+        cbuf->data[cbuf->head] = data;
+        cbuf->head = (cbuf->head + 1) % cbuf->size;
+
+//        if(cbuf->head == cbuf->tail)
+//        {
+//            cbuf->tail = (cbuf->tail + 1) % cbuf->size;
+//        }
+        cbuf->num_byte++;
+        ret = EXIT_SUCCESS;
+    }
+
+    return ret;
+}
+
+int buf_get(cbuf_t * cbuf, uint8_t * data)
+{
+    int ret = EXIT_FAILURE;
+
+    if(cbuf && data && !buf_empty(cbuf))
+    {
+        *data = cbuf->data[cbuf->tail];
+        cbuf->tail = (cbuf->tail + 1) % cbuf->size;
+        cbuf->num_byte--;
+        ret = EXIT_SUCCESS;
+    }
+
+    return ret;
+}
+
+int buf_putback(cbuf_t * cbuf)
+{
+    int ret = EXIT_FAILURE;
+    if(cbuf && !buf_full(cbuf))
+    {
+        if(cbuf->tail == 0)
+            cbuf->tail = cbuf->size;
+        cbuf->tail--;
+        cbuf->num_byte++;
+        ret = EXIT_SUCCESS;
+    }
+    return ret;
+}
+
+int buf_read(cbuf_t * cbuf, uint8_t * data, size_t num_bytes)
+{
+    // read at most all bytes in the buffer
+    if(num_bytes > cbuf->num_byte)
+        num_bytes = cbuf->num_byte;
+
+    int i;
+    for(i = 0; i < num_bytes; i++){
+        if(buf_get(cbuf, &data[i]) != EXIT_SUCCESS)
+            return EXIT_FAILURE;
+    }
+    return (int)num_bytes;
+}
+
+int buf_write(cbuf_t * cbuf, uint8_t * data, size_t num_bytes)
+{
+    // write at most all bytes in data into the buffer
+    if(num_bytes > buf_available(cbuf)) {
+        num_bytes = buf_available(cbuf);
+        printf("buffer overflow!\n");
+    }
+
+    int i;
+    for(i = 0; i < num_bytes; i++){
+        if(buf_put(cbuf, data[i]) != EXIT_SUCCESS) {
+            return EXIT_FAILURE;
+        }
+    }
+    return (int)num_bytes;
+}
+
+void print_message(uint8_t* msg, size_t len)
 {
     int i;
     printf("Message: ");
-    for(i = 0; i < len; i++) printf("%c", msg[i]);
+    for(i = 0; i < len; i++) printf("%c", (char)msg[i]);
     printf("\n");
 }
 
@@ -43,88 +154,40 @@ int create_peer(peer_t *peer)
     return 0;
 }
 
-void reset_sending_buff(peer_t *peer)
+int reset_sending_buff(peer_t *peer)
 {
-    peer->total_sending_bytes = 0;
-    peer->curr_sending_bytes = 0;
-    peer->is_sending = false;
-    peer->sending_buf_size = sending_buf_size(peer);
-    assert(peer->sending_buf_size == BUF_DATA_MAXSIZE);
+    return buf_reset(&peer->sending_buffer);
 }
 
-void reset_receiving_buff(peer_t *peer)
+int reset_receiving_buff(peer_t *peer)
 {
-    peer->start_receiving_byte = 0;
-    peer->receiving_buf_size = receiving_buf_size(peer);
-    assert(peer->receiving_buf_size == BUF_DATA_MAXSIZE);
-    peer->available_receiving_buffer_byte = peer->receiving_buf_size;
+    return buf_reset(&peer->receiving_buffer);
 }
 
-size_t receiving_buf_size(peer_t *peer)
+
+// sending buffer I/O
+
+// returns the number of bytes that are successfully written to the sending buffer
+int write_to_sending_buffer(peer_t *peer, uint8_t data[], size_t num_bytes)
 {
-    return (size_t)(sizeof((peer->receiving_buffer).data) / sizeof(char));
+    return buf_write(&peer->sending_buffer, data, num_bytes);
 }
 
-size_t sending_buf_size(peer_t *peer)
+int read_from_sending_buffer(peer_t *peer, uint8_t  data[], size_t bytes_read)
 {
-    return (size_t)(sizeof((peer->sending_buffer).data) / sizeof(char));
+    return buf_read(&peer->sending_buffer, data, bytes_read);
 }
 
-int write_to_sending_buffer(peer_t *peer, char data[], size_t num_bytes)
+// receiving buffer I/O
+
+int write_to_receiving_buffer(peer_t *peer, uint8_t data[], size_t num_bytes)
 {
-    if(num_bytes > peer->sending_buf_size) {
-        fprintf(stderr, "Trying to write too many bytes into sending buffer");
-        return EXIT_FAILURE;
-    }
-    memcpy((char*)&peer->sending_buffer, data, num_bytes);
-    peer->total_sending_bytes += num_bytes;
-    return EXIT_SUCCESS;
+    return buf_write(&peer->receiving_buffer, data, num_bytes);
 }
 
-int write_to_receiving_buffer(peer_t *peer, char data[], size_t num_bytes)
+int read_from_receiving_buffer(peer_t *peer, uint8_t data[], size_t bytes_read)
 {
-    if(num_bytes > peer->available_receiving_buffer_byte){
-        fprintf(stderr, "receiving buffer overflow");
-        return EXIT_FAILURE;
-    }
-    peer->available_receiving_buffer_byte -= num_bytes;
-    size_t buf_size = peer->receiving_buf_size;
-    size_t end_byte = peer->start_receiving_byte + num_bytes;
-    if(end_byte <= buf_size){
-        memcpy((char*)&(peer->receiving_buffer) + peer->start_receiving_byte, data, num_bytes);
-    }else{ // ring buffer needs to loop around
-        size_t copied_size = buf_size - peer->start_receiving_byte;
-        // fill up the rest of the ring buffer
-        memcpy((char*)&(peer->receiving_buffer) + peer->start_receiving_byte, data, copied_size);
-
-        // fill up the buffer from the beginning with the rest of bytes in data
-        memcpy((char*)&(peer->receiving_buffer), data + copied_size, num_bytes - copied_size);
-    }
-    end_byte %= buf_size;
-    peer->start_receiving_byte = end_byte;
-    return EXIT_SUCCESS;
-}
-
-size_t read_from_receiving_buffer(peer_t *peer, char data[], size_t bytes_read)
-{
-    size_t buf_size = peer->receiving_buf_size;
-    size_t bytes_in_buff = buf_size - peer->available_receiving_buffer_byte;
-    if(bytes_read > bytes_in_buff)
-        bytes_read = bytes_in_buff;
-
-    // calculate the start index of bytes to read
-    size_t start_read_byte = peer->start_receiving_byte + peer->available_receiving_buffer_byte;
-
-    // copy data
-    int i;
-    for(i = 0; i < bytes_read; i++)
-        data[i] = *((char *) (peer->receiving_buffer).data + ((start_read_byte + i) % buf_size));
-
-    if(bytes_read == bytes_in_buff)
-        reset_receiving_buff(peer); // whole receiving buffer becomes available
-    else
-        peer->available_receiving_buffer_byte += bytes_read;
-    return bytes_read;
+    return buf_read(&peer->receiving_buffer, data, bytes_read);
 }
 
 char *peer_get_addres_str(peer_t *peer)
@@ -138,105 +201,93 @@ char *peer_get_addres_str(peer_t *peer)
 
 // Receive message from peer and handle it with message_handler(). The message handler is responsible
 // for adjusting parameters of the receiving buffer
+// Depends on how much buffer available, receive only once
 int receive_from_peer(peer_t *peer, int (*message_handler)(peer_t *))
 {
     COMM_LOG("Ready for recv() from %s.", peer_get_addres_str(peer))
 
     size_t available_bytes;
     ssize_t received_count = 0; // has to be a signed size_t since recv might return negative value
-    size_t received_total = 0;
-    do {
-        COMM_LOG("%s", "received_count ")
-        COMM_LOG("%ld", received_count)
 
-        if (received_count > 0) {
-            if(message_handler(peer) != EXIT_SUCCESS)
-                return EXIT_FAILURE;
+    // Count bytes to receive.
+    available_bytes = buf_available(&peer->receiving_buffer);
+    COMM_LOG("Let's try to recv() %zd bytes...", available_bytes)
+    // temporary buffer to receive bytes from the sys call
+    uint8_t data[available_bytes];
+    // actual receiving
+    received_count = recv(peer->socket, (uint8_t *)data, available_bytes, MSG_DONTWAIT);
+    COMM_LOG("%s", "Actual received_count: ")
+    COMM_LOG("%ld", received_count)
+    if (received_count < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            COMM_LOG("%s", "peer is not ready right now, try again later.")
+            return EXIT_SUCCESS;
         }
-        // Count bytes to send.
-        available_bytes = peer->available_receiving_buffer_byte;
-        COMM_LOG("Let's try to recv() %zd bytes...", available_bytes)
-        // temporary buffer to receive bytes from the sys call
-        char data[available_bytes];
-
-        // actual receiving
-        received_count = recv(peer->socket, (char *)data, available_bytes, MSG_DONTWAIT);
-        COMM_LOG("%s", "Received_count: ")
-        COMM_LOG("%ld", received_count)
-        if (received_count < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                COMM_LOG("%s", "peer is not ready right now, try again later.")
-                break;
-            }
-            else {
-                perror("recv() from peer error");
-                return EXIT_FAILURE;
-            }
-        }
-        // If recv() returns 0, it means that peer gracefully shutdown. Shutdown client.
-        else if (received_count == 0) {
-            COMM_LOG("%s", "recv() 0 bytes. Peer gracefully shutdown.")
+        else {
+            perror("recv() from peer error");
             return EXIT_FAILURE;
         }
-        else if (received_count > 0) {
-            if(write_to_receiving_buffer(peer, data, (size_t)received_count) != EXIT_SUCCESS)
-                return EXIT_FAILURE;
-            received_total += received_count;
-            COMM_LOG("recv() %zd bytes.", received_count)
+    }// If recv() returns 0, it means that peer gracefully shutdown. Shutdown client.
+    else if (received_count == 0) {
+        COMM_LOG("%s", "recv() 0 bytes. Peer gracefully shutdown.")
+        return EXIT_FAILURE;
+    }
+    else if (received_count > 0) {
+        if(write_to_receiving_buffer(peer, data, (size_t)received_count) == EXIT_FAILURE) {
+            COMM_LOG("%s", "Write to receiving buffer failed!")
+            return EXIT_FAILURE;
         }
-    } while (received_count > 0);
 
-    COMM_LOG("Total recv()'ed %zu bytes.", received_total)
-    reset_receiving_buff(peer);
+        // send the receiving bytes to client
+        if(message_handler(peer) != EXIT_SUCCESS)
+            return EXIT_FAILURE;
+    }
     return EXIT_SUCCESS;
 }
 
-// once send_to_peer() is called, the sending buffer must have been emptyted before this function returns
+// once send_to_peer() is called, at most all bytes in the sending buffer are sent
 int send_to_peer(peer_t *peer)
 {
-    if(!peer->is_sending) return EXIT_SUCCESS; // not ready to be sent
     COMM_LOG("Ready for send() to %s.", peer_get_addres_str(peer))
-    ssize_t len_to_send;   // bytes that need to be sent
-    size_t send_total = 0; // total number of bytes that have been sent
-    ssize_t sent_count;    // bytes that have been sent at each iteration
-    do {
-        // Count bytes to send.
-        len_to_send = peer->total_sending_bytes - peer->curr_sending_bytes;
-        assert( len_to_send >= 0 );
-        if(len_to_send == 0){ // finish sending all bytes in the sending buffer
-            reset_sending_buff(peer);
-            COMM_LOG("%s", "successfully finish sending!")
-            break;
+    ssize_t buf_bytes_cnt;   // bytes that need to be sent
+    ssize_t sent_bytes_cnt;    // bytes that have been sent at each iteration
+
+    // Count bytes to send.
+    cbuf_t* sending_buf = &peer->sending_buffer;
+    buf_bytes_cnt = sending_buf->num_byte;
+    if(buf_bytes_cnt == 0)
+        return EXIT_SUCCESS;
+
+    uint8_t data[buf_bytes_cnt];
+    buf_bytes_cnt = read_from_sending_buffer(peer, data, buf_bytes_cnt);
+    COMM_LOG("Let's try to send() %zd bytes...", buf_bytes_cnt)
+
+    // actual sending, should be non-blocking
+    sent_bytes_cnt = send(peer->socket, (uint8_t *)data, buf_bytes_cnt, 0);
+    COMM_LOG("%s", "Done sending!")
+
+    if (sent_bytes_cnt < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            COMM_LOG("%s", "peer is not ready right now, try again later.")
+        } else {
+            COMM_LOG("%s", "send() from peer error")
+            return EXIT_FAILURE;
         }
 
-        if (len_to_send > MAX_SEND_SIZE) // if the sending_buffer is too big, send it chunk by chunk
-            len_to_send = MAX_SEND_SIZE;
+    } else if (sent_bytes_cnt > 0) {
+        COMM_LOG("send()'ed %zd bytes.", sent_bytes_cnt)
 
-        COMM_LOG("Let's try to send() %zd bytes...", len_to_send)
+    } else if (sent_bytes_cnt == 0) {
+        COMM_LOG("%s", "send()'ed 0 bytes. It seems that peer can't accept data right now. Try again later.")
+    }
 
-        // actual sending, should be blocking
-        sent_count = send(peer->socket, (char *)&peer->sending_buffer + peer->curr_sending_bytes, len_to_send, 0);
-        COMM_LOG("%s", "Done sending!")
-        if (sent_count < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                COMM_LOG("%s", "peer is not ready right now, try again later.")
-                sent_count = 0;
-            } else {
-                COMM_LOG("%s", "send() from peer error")
-                return EXIT_FAILURE;
-            }
+    sent_bytes_cnt = (sent_bytes_cnt < 0 ? 0 : sent_bytes_cnt);
+    // write the unsent bytes back to the sending buffer
+    while(sent_bytes_cnt < buf_bytes_cnt){
+        assert( buf_putback(sending_buf) != EXIT_FAILURE);
+        sent_bytes_cnt++;
+    }
 
-        } else if (sent_count == 0) {
-            COMM_LOG("%s", "send()'ed 0 bytes. It seems that peer can't accept data right now. Try again later.")
-
-        } else if (sent_count > 0) {
-            peer->curr_sending_bytes += sent_count;
-            send_total += sent_count;
-            COMM_LOG("send()'ed %zd bytes.", sent_count)
-        }
-    } while (sent_count > 0);
-
-    COMM_LOG("Total send()'ed %zu bytes.", send_total)
     return EXIT_SUCCESS;
 }
 

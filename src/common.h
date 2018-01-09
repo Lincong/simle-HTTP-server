@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <sys/time.h>
 
 #define MAX_CLIENTS 100
 #define NO_SOCKET -1
@@ -36,7 +37,9 @@
 // server communication logging
 
 #define SERVER_LOG_ON true
-#define COMM_LOG_ON false
+#define COMM_LOG_ON true
 #define HANDLER_LOG_ON false
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 
 #endif //COMMON_H

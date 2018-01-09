@@ -12,14 +12,30 @@
  */
 #define MAX_SEND_SIZE 512
 
-#define BUF_DATA_MAXSIZE_IN_KB 1
+#define BUF_DATA_MAXSIZE_IN_KB 4
 #define BUF_DATA_MAXSIZE 1024 * BUF_DATA_MAXSIZE_IN_KB
 
-// message --------------------------------------------------------------------
+// buffer --------------------------------------------------------------------
 
 typedef struct {
-    char data[BUF_DATA_MAXSIZE];
-}  message_t;
+    uint8_t data[BUF_DATA_MAXSIZE];
+    size_t head;
+    size_t tail;
+    size_t size; //of the buffer
+    size_t num_byte; // current number of bytes
+} cbuf_t;
+
+int buf_reset(cbuf_t * cbuf);
+size_t buf_available(cbuf_t* cbuf);
+int buf_put(cbuf_t * cbuf, uint8_t data);
+int buf_get(cbuf_t * cbuf, uint8_t * data);
+int buf_putback(cbuf_t * cbuf); // to reverse the buf_get process
+
+int buf_read(cbuf_t * cbuf, uint8_t * data, size_t num_bytes);
+int buf_write(cbuf_t * cbuf, uint8_t * data, size_t num_bytes);
+bool buf_empty(cbuf_t* cbuf);
+bool buf_full(cbuf_t* cbuf);
+
 
 // peer -----------------------------------------------------------------------
 
@@ -27,19 +43,8 @@ typedef struct {
     int socket;
     struct sockaddr_in addres;
 
-    message_t sending_buffer;   // data in the outgoing buffer
-    size_t sending_buf_size;
-    size_t total_sending_bytes; // total bytes that needs to be sent out
-    size_t curr_sending_bytes;  // currently the number of bytes that have been sent out
-    bool is_sending;            // is the server sending bytes from this peer's buffer
-
-    // data in the incoming buffer. It is used as a ring buffer
-    // from the start_receiving_byte to start_receiving_byte + available_receiving_buffer_byte - 1
-    // are the data in the buffer
-    message_t receiving_buffer;
-    size_t receiving_buf_size;
-    size_t start_receiving_byte; // index to the next available byte in the receiving buffer
-    size_t available_receiving_buffer_byte; // total number bytes the buffer can take in
+    cbuf_t sending_buffer;   // data in the outgoing buffer
+    cbuf_t receiving_buffer;
 } peer_t;
 
 int create_peer(peer_t *peer);
@@ -56,24 +61,25 @@ int send_to_peer(peer_t *peer);
 // both sending and receiving buffers should have the same size
 size_t receiving_buf_size(peer_t *peer);
 size_t sending_buf_size(peer_t *peer);
-// Assume the sending buffer is always empty when use this function
+
 // Return EXIT_FAILURE if it fails
-int write_to_sending_buffer(peer_t *peer, char data[], size_t num_bytes);
+int write_to_sending_buffer(peer_t *peer, uint8_t data[], size_t num_bytes);
+int read_from_sending_buffer(peer_t *peer, uint8_t data[], size_t bytes_read);
 
 // return EXIT_FAILURE if it fails due to buffer overflow
-int write_to_receiving_buffer(peer_t *peer, char data[], size_t num_bytes);
+int write_to_receiving_buffer(peer_t *peer, uint8_t data[], size_t num_bytes);
 // If bytes_read > total number of bytes in the buffer, fill up data with
 // all bytes. Assume the data array passed in has correctly allocated memory.
 // Return the number of bytes that are filled in the buffer.
-size_t read_from_receiving_buffer(peer_t *peer, char data[], size_t bytes_read);
+int read_from_receiving_buffer(peer_t *peer, uint8_t data[], size_t bytes_read);
 // reset
-void reset_sending_buff(peer_t *peer);
-void reset_receiving_buff(peer_t *peer);
+int reset_sending_buff(peer_t *peer);
+int reset_receiving_buff(peer_t *peer);
 
 // connection -----------------------------------------------------------------
 
 int handle_new_connection(int listen_sock, peer_t connection_list[]);
 int close_client_connection(peer_t *client);
-void print_message(char* msg, size_t len);
+void print_message(uint8_t* msg, size_t len);
 
 #endif //SERVER_MESSAGE_H

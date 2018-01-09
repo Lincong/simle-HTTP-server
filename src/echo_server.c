@@ -14,6 +14,7 @@
 #include "utility.h"
 #include "connection_handlers.h"
 #include "logger.h"
+#include "message.h"
 
 int echo_sock_fd; // a file descriptor for our "listening" socket.
 peer_t connection_list[MAX_CLIENTS];
@@ -44,6 +45,9 @@ int main(int argc, char* argv[])
     fd_set read_fds;
     fd_set write_fds;
     fd_set except_fds;
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 2000;
 
     int high_sock = echo_sock_fd;
 
@@ -57,7 +61,7 @@ int main(int argc, char* argv[])
                 high_sock = connection_list[i].socket;
         }
         SERVER_LOG("%s", "Selecting...")
-        int activity = select(high_sock + 1, &read_fds, &write_fds, &except_fds, NULL);
+        int activity = select(high_sock + 1, &read_fds, &write_fds, &except_fds, NULL); // &timeout); //  NULL);
 
         switch (activity) {
             case -1:
@@ -67,7 +71,7 @@ int main(int argc, char* argv[])
             case 0:
                 // you should never get here
                 fprintf(stderr, "select() returns 0.\n");
-                server_shutdown_properly(EXIT_FAILURE);
+                // server_shutdown_properly(EXIT_FAILURE);
 
             default:
 
@@ -138,7 +142,7 @@ int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *
 
     FD_ZERO(write_fds);
     for (i = 0; i < MAX_CLIENTS; ++i)
-        if (connection_list[i].socket != NO_SOCKET && connection_list[i].is_sending)
+        if (connection_list[i].socket != NO_SOCKET) // !buf_empty(&connection_list[i].sending_buffer))
             FD_SET(connection_list[i].socket, write_fds);
 
     FD_ZERO(except_fds);
@@ -157,9 +161,9 @@ void handle_signal_action(int sig_number)
         printf("SIGINT was catched!\n");
         server_shutdown_properly(EXIT_SUCCESS);
     }
-    else if (sig_number == SIGPIPE) {
+    else if (sig_number == SIGPIPE) { // there is nobody to receive your data
         printf("SIGPIPE was catched!\n");
-        server_shutdown_properly(EXIT_SUCCESS);
+        // server_shutdown_properly(EXIT_SUCCESS);
     }
 }
 
