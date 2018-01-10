@@ -55,10 +55,6 @@ int buf_put(cbuf_t * cbuf, uint8_t data)
         cbuf->data[cbuf->head] = data;
         cbuf->head = (cbuf->head + 1) % cbuf->size;
 
-//        if(cbuf->head == cbuf->tail)
-//        {
-//            cbuf->tail = (cbuf->tail + 1) % cbuf->size;
-//        }
         cbuf->num_byte++;
         ret = EXIT_SUCCESS;
     }

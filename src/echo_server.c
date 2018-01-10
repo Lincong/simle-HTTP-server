@@ -69,7 +69,6 @@ int main(int argc, char* argv[])
                 server_shutdown_properly(EXIT_FAILURE);
 
             case 0:
-                // you should never get here
                 fprintf(stderr, "select() returns 0.\n");
                 // server_shutdown_properly(EXIT_FAILURE);
 

@@ -58,10 +58,6 @@ int send_to_peer(peer_t *peer);
 
 // buffer input functions
 
-// both sending and receiving buffers should have the same size
-size_t receiving_buf_size(peer_t *peer);
-size_t sending_buf_size(peer_t *peer);
-
 // Return EXIT_FAILURE if it fails
 int write_to_sending_buffer(peer_t *peer, uint8_t data[], size_t num_bytes);
 int read_from_sending_buffer(peer_t *peer, uint8_t data[], size_t bytes_read);
