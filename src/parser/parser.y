@@ -198,8 +198,20 @@ request_header: token ows t_colon ows text ows t_crlf {
   strcpy(parsing_request->headers[parsing_request->header_count].header_name, $1);
 	strcpy(parsing_request->headers[parsing_request->header_count].header_value, $5);
 	parsing_request->header_count++;
+
+  /* Dynamically resizing space for headers */
+  if (parsing_request->header_count == parsing_request->header_cap) {
+   	parsing_request->header_cap *= 2;
+  	parsing_request->headers = (Request_header *)realloc(parsing_request->headers, sizeof(Request_header)*parsing_request->header_cap);
+  	if (parsing_request->headers == NULL){
+	  	perror("Can not allocate space for HTTP headers");
+	    exit(1);
+		}
+  }
 };
 
+request_headers: request_headers request_header {}
+          | {};    /* Request headers can be empty */
 
 /*
  * You need to fill this rule, and you are done! You have all the assembly

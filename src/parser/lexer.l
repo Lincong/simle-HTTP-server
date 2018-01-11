@@ -66,20 +66,20 @@ extern int parsing_offset;	/* Current offset in the buffer */
  * ht              \x09
  * quote           \"
  * digit           [0-9]
- * ctl             [\x0-\x1f\x7f]
+ * ctl             [\x0-\x1f\x7f]     <any US-ASCII control character (octets 0 - 31) and DEL (127)>
  * upalpha         [A-Z]
  * loalpha         [a-z]
  * alpha	   [A-Za-z]
  * char            [\x0-\x7f]
- * octet           [\x0-\x1f\xff]
- * crlf            {cr}{lf}
- * lws             \x0d\x0a(\x20|\x09)*
+ * octet           [\x0-\x1f\xff]     <any 8-bit sequence of data>
+ * crlf            {cr}{lf}           <end-of-line marker>
+ * lws             \x0d\x0a(\x20|\x09)*   <linear white space> has the space semantics as SP
  * hex             [ABCDEFabcdef0-9]
  * separators	   [\{\}\(\)\<\>@,;:\\\"/\[\]?=\x20\x09]
  */
 
 /**
- * Declarations
+ * Definitions
  */
 
 /* Matches a digit. For e.g., 0, 8. */
@@ -237,4 +237,4 @@ token_char      [\x0-\x7f]{-}[\x0-\x1f\x7f]{-}[\{\}\(\)\<\>@\,;:\\\"/\[\]?=\x20\
 %%
 
 int yywrap(void) {
-return 0; }
+return 1; }

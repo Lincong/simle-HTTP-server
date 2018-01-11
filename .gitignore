@@ -3,3 +3,8 @@
 cmake-build-debug
 CMakeLists.*
 starter_code_2
+*.tab.c
+*.tab.h
+*.yy.c
+*.yy.h
+parser_exe
