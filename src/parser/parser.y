@@ -195,12 +195,15 @@ request_line: token t_sp text t_sp text t_crlf {
 
 request_header: token ows t_colon ows text ows t_crlf {
 	YPRINTF("request_Header:\n%s\n%s\n",$1,$5);
+	// printf("Header name: %s\n", $1);
+	// printf("Header value: %s\n\n", $5);
   strcpy(parsing_request->headers[parsing_request->header_count].header_name, $1);
 	strcpy(parsing_request->headers[parsing_request->header_count].header_value, $5);
 	parsing_request->header_count++;
 
   /* Dynamically resizing space for headers */
   if (parsing_request->header_count == parsing_request->header_cap) {
+  	printf("Realloc\n");
   	parsing_request->header_cap *= 2;
   	parsing_request->headers = (Request_header *)realloc(parsing_request->headers, sizeof(Request_header)*parsing_request->header_cap);
   	if (parsing_request->headers == NULL){
@@ -224,10 +227,10 @@ request: request_line request_headers t_crlf {
 
 void set_parsing_options(char *buf, size_t siz, Request *request)
 {
-  parsing_buf = buf;
+	parsing_buf = buf;
 	parsing_offset = 0;
 	parsing_buf_siz = siz;
-  parsing_request = request;
+	parsing_request = request;
 }
 
 void yyerror (char *s) {fprintf (stderr, "%s\n", s);}

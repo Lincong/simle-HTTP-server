@@ -1,5 +1,5 @@
 #include "parse.h"
-
+#define HEADER_NUM 20 // number of headers the parser output data structure can store before resizing
 // extern void set_parsing_options(char *buf, size_t siz, Request *parsing_request);
 // extern int yyparse(void);
 
@@ -29,42 +29,41 @@ Request * parse(char *buffer, int size, int socketFd) {
 		buf[offset++] = ch;
 
 		switch (state) {
-		case STATE_START:
-		case STATE_CRLF:
-			expected = '\r';
-			break;
-		case STATE_CR:
-		case STATE_CRLFCR:
-			expected = '\n';
-			break;
-		default:
-			state = STATE_START;
-			continue;
+		    case STATE_START:
+		    case STATE_CRLF:
+			    expected = '\r';
+			    break;
+		    case STATE_CR:
+		    case STATE_CRLFCR:
+			    expected = '\n';
+			    break;
+		    default:
+			    state = STATE_START;
+		    	continue;
 		}
 
 		if (ch == expected)
 			state++;
 		else
 			state = STATE_START;
-
 	}
 
   //Valid End State
 	if (state == STATE_CRLFCRLF) {
 		Request *request = (Request *) malloc(sizeof(Request));
-    request->header_count=0;
-    request->header_cap = 16; // default size
-    //TODO You will need to handle resizing this in parser.y
-    request->headers = (Request_header *) malloc(sizeof(Request_header)*1);
+       request->header_count=0;
+        request->header_cap = HEADER_NUM; // default size
+        //TODO You will need to handle resizing this in parser.y
+        request->headers = (Request_header *) malloc(sizeof(Request_header)*HEADER_NUM);
 		set_parsing_options(buf, i, request);
 
 		if (yyparse() == SUCCESS) {
-      return request;
+            return request;
 		} else {
-      free(request->headers);
-      free(request);
-    }
+            free(request->headers);
+            free(request);
+        }
 	}
-  //TODO Handle Malformed Requests
   printf("Parsing Failed\n");
+  return NULL;
 }

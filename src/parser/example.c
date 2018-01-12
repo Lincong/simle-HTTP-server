@@ -21,12 +21,12 @@ int main(int argc, char **argv){
   //be read from that fd
   Request *request = parse(buf,readRet,fd_in);
   //Just printing everything
-  printf("Http Method %s\n",request->http_method);
-  printf("Http Version %s\n",request->http_version);
-  printf("Http Uri %s\n",request->http_uri);
+  printf("Http Method: %s\n",request->http_method);
+  printf("Http Version: %s\n",request->http_version);
+  printf("Http Uri: %s\n",request->http_uri);
   for(index = 0;index < request->header_count;index++){
     printf("Request Header\n");
-    printf("Header name %s Header Value %s\n",request->headers[index].header_name,request->headers[index].header_value);
+    printf("Header name: %s\nHeader Value: %s\n\n",request->headers[index].header_name,request->headers[index].header_value);
   }
   free(request->headers);
   free(request);
