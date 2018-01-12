@@ -1,0 +1,100 @@
+HTTP implementation:
+
+HTTP methods:
+  1. GET
+  2. HEAD
+  3. POST
+
+HTTP request format:
+  1. Request line (3 fields: method field, URL field, HTTP version field)
+  2. Header lines (Host: *, Connection: *, User-agent: *, Accept-language: *)
+  3. Blank line
+  4. Entity body
+
+
+1. If request header size > 8192 bytes
+    For now, send error message and disconnect.
+
+
+In HTTP handlers:
+  receive request --> generate response headers --> send headers back --> stream response entity body (file content)
+
+**********************************
+Structure:
+**********************************
+
+http_handle (function): (2 parts)
+  // process input part
+  1. read all data from the recv buffer and process it 
+  2. generate Request
+  3. Use Request object to generate Response object
+  4. Put the response object in the back_log (queue)
+
+  // generate output part
+  5. check the state of the current "http_task"
+  6. do corresponding actions
+  7. if the current "http_task" is finished. Get another one from the queue and repeat from step 5 until the send buffer is filled up
+  8. return
+
+http_agent (object): // it is basically just the queue
+  1. requests_backlog (a queue of <http_task>)
+  2. parse_header_buffer // because we can only call "parse()" until '\r\r' are encountered in the data
+
+http_task (object):
+  1. current_state
+  2. response_header_buffer (response header data as a whole string)
+  3. some data structures holding file descriptors of files the content of which are going to be sent the client
+
+********************************************************************
+GET
+********************************************************************
+
+request:
+
+response: 
+  1. status line (200 OK)
+  2. headers (k-v pair)
+    1. Server : ..
+    2. Date : ..
+    3. Content-Length : ..
+    4. Content-Type : ..
+    5. Last-modified : ..
+    6. Connection : Close/Keep-alive
+    7. \r\n\r\n (clrf)
+  3. body (usually file content)
+
+********************************************************************
+HEAD
+********************************************************************
+
+response: 
+  1. status line (200 OK)
+  2. headers (k-v pair)
+    1. Server : ..
+    2. Date : ..
+    3. Content-Length : ..
+    4. Content-Type : ..
+    5. Last-modified : ..
+    6. Connection : Close/Keep-alive
+    7. \r\n\r\n (clrf)
+
+********************************************************************
+POST
+********************************************************************
+
+request: (related to CGI)
+
+response: 
+  1. status line (200 OK)
+  2. \r\n\r\n (clrf)
+
+
+
+
+
+
+
+
+
+
+
