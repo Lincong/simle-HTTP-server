@@ -6,6 +6,7 @@
 #include "connection_handlers.h"
 #include "logger.h"
 #include "message.h"
+#include "http.h"
 
 int echo_sock_fd; // a file descriptor for our "listening" socket.
 peer_t connection_list[MAX_CLIENTS];
@@ -101,12 +102,12 @@ int main(int argc, char* argv[])
                     }
 
                     // handle HTTP
-//                    if(connection_list[i].socket != NO_SOCKET) {
-//                        if(handle_http(connection_list[i]) == CLOSE_CONN){
-//                            SERVER_LOG("Close connection %d", i)
-//                            close_client_connection(&connection_list[i]);
-//                        }
-//                    }
+                    if(connection_list[i].socket != NO_SOCKET) {
+                        if(handle_http(&connection_list[i]) == CLOSE_CONN){
+                            SERVER_LOG("Close connection %d", i)
+                            close_client_connection(&connection_list[i]);
+                        }
+                    }
                 }
         }
     }

@@ -12,7 +12,6 @@ $(CC) $(CFLAGS) -c  $< -o $@
 endef
 
 
-SERVER_SRC = server.c utility.c message.c connection_handlers.c
 OBJ_DIR=objs
 PARSE_DIR=parser
 PARSER_DEPS = $(PARSE_DIR)/parse.h $(PARSE_DIR)/y.tab.h
@@ -25,6 +24,7 @@ OBJ=$(OBJ_DIR)/server.o
 OBJ+=$(OBJ_DIR)/utility.o
 OBJ+=$(OBJ_DIR)/message.o
 OBJ+=$(OBJ_DIR)/connection_handlers.o
+OBJ+=$(OBJ_DIR)/http.o
 
 # add parser objects
 OBJ+=$(OBJ_DIR)/y.tab.o
@@ -38,6 +38,8 @@ all: pre server
 pre:
 	mkdir -p $(OBJ_DIR)
 
+# rules for making server objects
+
 $(OBJ_DIR)/server.o: server.c
 	$(build_obj)
 
@@ -49,6 +51,11 @@ $(OBJ_DIR)/message.o: message.c
 
 $(OBJ_DIR)/connection_handlers.o: connection_handlers.c
 	$(build_obj)
+
+$(OBJ_DIR)/http.o: http.c
+	$(build_obj)
+
+# rules for making parser objects
 
 $(PARSE_DIR)/lex.yy.c: $(PARSE_DIR)/lexer.l
 	flex -o $@ $^
@@ -65,6 +72,8 @@ $(OBJ_DIR)/lex.yy.o: $(PARSE_DIR)/lex.yy.c $(PARSER_DEPS)
 
 $(OBJ_DIR)/y.tab.o: $(PARSE_DIR)/y.tab.c $(PARSER_DEPS)
 	  $(build_obj)
+
+# rule for building the final executable
 
 server: $(OBJ)
 	$(CC) $(CFLAGS) $^ -o $@
