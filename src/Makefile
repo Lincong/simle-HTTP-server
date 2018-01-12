@@ -14,7 +14,7 @@ endef
 
 SERVER_SRC = server.c utility.c message.c connection_handlers.c
 OBJ_DIR=objs
-PARSE_DIR=$(SOURCE_DIR)/parser
+PARSE_DIR=parser
 PARSER_DEPS = $(PARSE_DIR)/parse.h $(PARSE_DIR)/y.tab.h
 
 CC=gcc
