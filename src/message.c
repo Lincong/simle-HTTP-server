@@ -234,9 +234,11 @@ int receive_from_peer(peer_t *peer, int (*message_handler)(peer_t *))
             return EXIT_FAILURE;
         }
 
-        // send the receiving bytes to client
-        if(message_handler(peer) != EXIT_SUCCESS)
-            return EXIT_FAILURE;
+        if(!IS_HTTP_SERVER) {
+            // send the receiving bytes to client
+            if (message_handler(peer) != EXIT_SUCCESS)
+                return EXIT_FAILURE;
+        }
     }
     return EXIT_SUCCESS;
 }

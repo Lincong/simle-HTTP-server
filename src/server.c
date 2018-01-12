@@ -1,14 +1,5 @@
 /******************************************************************************
-* echo_server.c                                                               *
-*                                                                             *
-* Description: This file contains the C source code for an echo server.  The  *
-*              server runs on a hard-coded port and simply write back anything*
-*              sent to it by connected clients.  It does not support          *
-*              concurrent clients.                                            *
-*                                                                             *
-* Authors: Athula Balachandran <abalacha@cs.cmu.edu>,                         *
-*          Wolf Richter <wolf@cs.cmu.edu>                                     *
-*                                                                             *
+* Authors: Lincong Li                                                         *
 *******************************************************************************/
 
 #include "utility.h"
@@ -108,6 +99,14 @@ int main(int argc, char* argv[])
                         close_client_connection(&connection_list[i]);
                         continue;
                     }
+
+                    // handle HTTP
+//                    if(connection_list[i].socket != NO_SOCKET) {
+//                        if(handle_http(connection_list[i]) == CLOSE_CONN){
+//                            SERVER_LOG("Close connection %d", i)
+//                            close_client_connection(&connection_list[i]);
+//                        }
+//                    }
                 }
         }
     }

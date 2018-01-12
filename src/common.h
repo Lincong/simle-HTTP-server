@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <sys/time.h>
 
+#define IS_HTTP_SERVER false // if not a HTTP server, act like an echo server
 #define MAX_CLIENTS 100
 #define NO_SOCKET -1
 #define SERVER_NAME "server"
@@ -31,6 +32,8 @@
 #define BUF_SIZE 4096
 #define BACKLOG  10
 #define SOCK_REUSE 1
+#define CLOSE_CONN 1
+#define KEEP_CONN 1
 
 // parameters to turn on and off logging
 
