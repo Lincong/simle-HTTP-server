@@ -107,7 +107,9 @@ int main(int argc, char* argv[])
                         if(ret == CLOSE_CONN_IMMEDIATELY){
                             SERVER_LOG("Close connection %d", i)
                             close_client_connection(&connection_list[i]);
+
                         }else if(ret == CLOSE_CONN){
+                            connection_list[i].close_conn = true;
 
                         }
                     }

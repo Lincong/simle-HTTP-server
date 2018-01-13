@@ -11,6 +11,9 @@ define build_obj
 $(CC) $(CFLAGS) -c  $< -o $@
 endef
 
+define build_parser_obj
+$(CC) -c  $< -o $@
+endef
 
 OBJ_DIR=objs
 PARSE_DIR=parser
@@ -65,13 +68,13 @@ $(PARSE_DIR)/y.tab.c: $(PARSE_DIR)/parser.y
 	mv y.tab.* $(PARSE_DIR)/
 
 $(OBJ_DIR)/%.o: $(PARSE_DIR)/%.c $(PARSER_DEPS)
-	  $(build_obj)
+	  $(build_parser_obj)
 
 $(OBJ_DIR)/lex.yy.o: $(PARSE_DIR)/lex.yy.c $(PARSER_DEPS)
-	  $(build_obj)
+	  $(build_parser_obj)
 
 $(OBJ_DIR)/y.tab.o: $(PARSE_DIR)/y.tab.c $(PARSER_DEPS)
-	  $(build_obj)
+	  $(build_parser_obj)
 
 # rule for building the final executable
 

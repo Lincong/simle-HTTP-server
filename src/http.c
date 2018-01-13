@@ -4,132 +4,11 @@
 
 #include "http.h"
 #include "message.h"
+#include "logger.h"
 #include "parser/parse.h"
 
-///*
-//  _     _____ _____ ____    _____  _    ____  _  __
-// | | | |_   _|_   _|  _ \  |_   _|/ \  / ___|| |/ /
-// | |_| | | |   | | | |_) |   | | / _ \ \___ \| ' /
-// |  _  | | |   | | |  __/    | |/ ___ \ ___) | . \
-// |_| |_| |_|   |_| |_|       |_/_/   \_\____/|_|\_\
-//
-//*/
-//
-//http_task_t* create_http_task()
-//{
-//    return (http_task_t*) malloc(1*sizeof(http_task_t));
-//}
-//
-//void destroy_http_task(http_task_t* http_task)
-//{
-//    if(http_task != NULL)
-//        free(http_task);
-//}
-
-/*
- _                _    _
-| |              | |  | |
-| |__   __ _  ___| | _| | ___   __ _    __ _ _   _  ___ _   _  ___
-| '_ \ / _` |/ __| |/ / |/ _ \ / _` |  / _` | | | |/ _ \ | | |/ _ \
-| |_) | (_| | (__|   <| | (_) | (_| | | (_| | |_| |  __/ |_| |  __/
-|_.__/ \__,_|\___|_|\_\_|\___/ \__, |  \__, |\__,_|\___|\__,_|\___|
-                                __/ |     | |
-                               |___/      |_|
-*/
-//
-//// Create an empty queue
-//void create_http_backlog(http_backlog_t* backlog)
-//{
-//    backlog->front = backlog->rear = NULL;
-//    backlog->size = 0;
-//}
-//
-//void destroy_http_backlog(http_backlog_t* backlog)
-//{
-//    while(!is_http_backlog_empty(backlog))
-//        deq_http_backlog(backlog);
-//    assert(backlog->size == 0);
-//}
-//
-//// Returns queue size
-//size_t http_backlog_size(http_backlog_t* backlog)
-//{
-//    return backlog->size;
-//}
-//
-//// Enqueing the queue
-//void enq_http_backlog(http_task_t* new_http_task, http_backlog_t* backlog)
-//{
-//    if (backlog->rear == NULL)
-//    {
-//        backlog->rear = (struct backlog_request *)malloc(1*sizeof(struct backlog_request));
-//        backlog->rear->next = NULL;
-//        backlog->rear->http_task = new_http_task;
-//        backlog->front = backlog->rear;
-//
-//    } else {
-//        backlog->temp = (struct backlog_request *)malloc(1*sizeof(struct backlog_request));
-//        backlog->rear->next = backlog->temp;
-//        backlog->temp->http_task = new_http_task;
-//        backlog->temp->next = NULL;
-//        backlog->rear = backlog->temp;
-//    }
-//    backlog->size++;
-//}
-//
-//// Dequeing the queue
-//int deq_http_backlog(http_backlog_t* backlog)
-//{
-//    backlog->front1 = backlog->front;
-//
-//    if (backlog->front1 == NULL)
-//    {
-//        printf("\n Error: Trying to display elements from empty queue");
-//        assert(backlog->size == 0);
-//        assert(backlog->rear == NULL);
-//        return EXIT_FAILURE;
-//
-//    } else if (backlog->front1->next != NULL) {
-//        assert(backlog->size > 1);
-//        backlog->front1 = backlog->front1->next;
-//
-//        // destroy the http task first
-//        destroy_http_task(backlog->front->http_task);
-//        // destroy the current node storing the http task
-//        free(backlog->front);
-//        backlog->front = backlog->front1;
-//
-//    } else { // only one node
-//        assert(backlog->size == 1);
-//
-//        // destroy the http task first
-//        destroy_http_task(backlog->front->http_task);
-//        // destroy the current node storing the http task
-//        free(backlog->front);
-//        backlog->front = NULL;
-//        backlog->rear = NULL;
-//
-//    }
-//    backlog->size--;
-//    return EXIT_SUCCESS;
-//}
-//
-//// Returns the front element of queue
-//http_task_t* peek_http_backlog(http_backlog_t* backlog)
-//{
-//    if ((backlog->front != NULL) && (backlog->rear != NULL)) {
-//        return (backlog->front->http_task);
-//    } else {
-//        assert(backlog->size == 0);
-//        return NULL;
-//    }
-//}
-//
-///* Display if queue is empty or not */
-//bool is_http_backlog_empty(http_backlog_t* backlog)
-//{
-//    return ((backlog->front == NULL) && (backlog->rear == NULL));
-//}
+int read_header_data(peer_t *peer);
+void print_req(Request* request);
 
 
 /*
@@ -168,6 +47,7 @@ int handle_http(peer_t *peer)
   7. if the current "http_task" is finished. Get another one from the queue and repeat from step 5 until the send buffer is filled up
   8. return
      */
+    HTTP_LOG("%s", "In HTTP handler!")
     http_task_t* curr_task = peer->http_task;
     if(curr_task == NULL){
         fprintf(stderr, "When handle_http() is called, http_task should have been allocated");
@@ -179,6 +59,7 @@ int handle_http(peer_t *peer)
     while(curr_task->state != FINISHED_STATE){
         if(curr_task->state == RECV_HEADER_STATE){
             // read bytes from receiving buffer into parser buffer
+            HTTP_LOG("%s", "Before read_header_data")
             int ret = read_header_data(peer);
             if(ret == PARSER_BUF_OVERFLOW) {
                 return CLOSE_CONN_IMMEDIATELY; // invalid header request
@@ -188,18 +69,14 @@ int handle_http(peer_t *peer)
 
             }
             Request *request = parse((char*)curr_task->parse_buf, curr_task->parse_buf_idx, NULL);
-            if(request == NULL)
+            if(request == NULL) {
+                HTTP_LOG("%s", "parse() returns NULL")
+                exit(0);
                 return CLOSE_CONN_IMMEDIATELY; // invalid header request
-
-            //Just printing everything
-            int index;
-            printf("Http Method: %s\n",request->http_method);
-            printf("Http Version: %s\n",request->http_version);
-            printf("Http Uri: %s\n",request->http_uri);
-            for(index = 0;index < request->header_count;index++){
-                printf("Request Header\n");
-                printf("Header name: %s\nHeader Value: %s\n\n",request->headers[index].header_name,request->headers[index].header_value);
             }
+            if(HTTP_LOG_ON)
+                print_req(request);
+
             free(request->headers);
             free(request);
             return CLOSE_CONN_IMMEDIATELY; // test
@@ -242,7 +119,6 @@ int read_header_data(peer_t *peer)
     assert(curr_task != NULL);
     uint8_t * parse_buf = curr_task->parse_buf;
     char* terminator = "\r\n\r\n";
-    int i;
 
     uint8_t data;
     while(curr_task->header_term_token_status != HEADER_TERM_STATUS){
@@ -302,4 +178,16 @@ int read_header_data(peer_t *peer)
     } // end of while
     assert(curr_task->header_term_token_status == HEADER_TERM_STATUS);
     return EXIT_SUCCESS;
+}
+
+void print_req(Request* request)
+{
+    int index;
+    printf("Http Method: %s\n",request->http_method);
+    printf("Http Version: %s\n",request->http_version);
+    printf("Http Uri: %s\n",request->http_uri);
+    for(index = 0;index < request->header_count;index++){
+        printf("Request Header\n");
+        printf("Header name: %s\nHeader Value: %s\n\n",request->headers[index].header_name,request->headers[index].header_value);
+    }
 }

@@ -283,8 +283,11 @@ int send_to_peer(peer_t *peer)
     cbuf_t* sending_buf = &peer->sending_buffer;
     buf_bytes_cnt = sending_buf->num_byte;
     if(buf_bytes_cnt == 0) {
-        if(peer->close_conn)
+        COMM_LOG("%s", "no data in sending buffer")
+        if(peer->close_conn) {
+            COMM_LOG("%s", "return EXIT_FAILURE")
             return EXIT_FAILURE; // tell the caller to close the connection
+        }
         return EXIT_SUCCESS;
     }
 

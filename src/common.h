@@ -20,10 +20,10 @@
 #include <fcntl.h>
 #include <sys/time.h>
 
-#define IS_HTTP_SERVER false // if not a HTTP server, act like an echo server
+#define IS_HTTP_SERVER true // if not a HTTP server, act like an echo server
 #define MAX_CLIENTS 100
 #define NO_SOCKET -1
-#define SERVER_NAME "server"
+#define SERVER_NAME "Liso"
 
 /* Maximum bytes that can be send() or recv() via net by one call.
  * It's a good idea to test sending one byte by one.
@@ -32,8 +32,6 @@
 #define BUF_SIZE 4096
 #define BACKLOG  10
 #define SOCK_REUSE 1
-#define CLOSE_CONN 1
-#define KEEP_CONN 1
 
 // parameters to turn on and off logging
 
@@ -42,6 +40,8 @@
 #define SERVER_LOG_ON true
 #define COMM_LOG_ON true
 #define HANDLER_LOG_ON false
+#define HTTP_LOG_ON true
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
