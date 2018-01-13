@@ -55,7 +55,7 @@ http_handle (function): (2 parts)
   7. if the current "http_task" is finished. Get another one from the queue and repeat from step 5 until the send buffer is filled up
   8. return
 
-http_agent (object): // it is basically just the queue
+http_agent (object): // it is basically just the queue and each "peer_t" contains a pointer to one http_agent
   1. requests_backlog (a queue of <http_task>)
   2. parse_header_buffer // because we can only call "parse()" until '\r\r' are encountered in the data
 

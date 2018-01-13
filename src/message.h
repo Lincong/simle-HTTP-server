@@ -12,7 +12,7 @@
  */
 #define MAX_SEND_SIZE 512
 
-#define BUF_DATA_MAXSIZE_IN_KB 4
+#define BUF_DATA_MAXSIZE_IN_KB 8
 #define BUF_DATA_MAXSIZE 1024 * BUF_DATA_MAXSIZE_IN_KB
 
 // buffer --------------------------------------------------------------------
