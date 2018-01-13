@@ -22,4 +22,4 @@ typedef struct
   int header_cap;
 } Request;
 
-Request* parse(char *buffer, int size,int socketFd);
+Request* parse(char *buffer, int size);

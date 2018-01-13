@@ -75,7 +75,7 @@ int handle_http(peer_t *peer)
                 print_parse_buf(curr_task);
 
             // let parser take care of received data
-            Request *request = parse((char*)curr_task->parse_buf, curr_task->parse_buf_idx, NULL);
+            Request *request = parse((char*)curr_task->parse_buf, curr_task->parse_buf_idx);
             if(request == NULL) {
                 HTTP_LOG("%s", "parse() returns NULL")
                 exit(0);

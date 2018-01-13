@@ -15,7 +15,7 @@ int main(int argc, char **argv){
   char buf[8192];
 
     int i;
-    for(i = 0; i < 2; i++) {
+    for(i = 0; i < 20; i++) {
         printf("---------- begin --------------\n");
         int fd_in = open(argv[1], O_RDONLY);
         if(fd_in < 0) {
@@ -28,7 +28,7 @@ int main(int argc, char **argv){
         //be read from that fd
         print_parse_buf(buf, readRet);
 
-        Request *request = parse(buf, readRet, fd_in);
+        Request *request = parse(buf, readRet);
         //Just printing everything
         printf("Http Method: %s\n", request->http_method);
         printf("Http Version: %s\n", request->http_version);
