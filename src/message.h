@@ -37,14 +37,27 @@ bool buf_empty(cbuf_t* cbuf);
 bool buf_full(cbuf_t* cbuf);
 
 
+// http_task
+
+typedef struct {
+    int state;
+    cbuf_t parse_buf;
+    cbuf_t response_buf; // might need to make it be dynamic buffer
+    FILE * fp;           // use fgetc() to get one byte at a time
+} http_task_t;
+
+http_task_t* create_http_task();
+void destroy_http_task(http_task_t* http_task);
+
 // peer -----------------------------------------------------------------------
 
 typedef struct {
     int socket;
     struct sockaddr_in addres;
-
+    http_task_t* http_task;
     cbuf_t sending_buffer;   // data in the outgoing buffer
     cbuf_t receiving_buffer;
+    bool close_conn;
 } peer_t;
 
 int create_peer(peer_t *peer);

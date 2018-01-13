@@ -8,7 +8,7 @@
 #include "message.h"
 #include "http.h"
 
-int echo_sock_fd; // a file descriptor for our "listening" socket.
+int http_sock_fd; // a file descriptor for our "listening" socket.
 peer_t connection_list[MAX_CLIENTS];
 
 void server_shutdown_properly(int code);
@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     SERVER_LOG("%s", "Done")
 
-    if (start_listen_socket(BACKLOG, SOCK_REUSE, &echo_sock_fd) != 0)
+    if (start_listen_socket(BACKLOG, SOCK_REUSE, &http_sock_fd) != 0)
         exit(EXIT_FAILURE);
 
     SERVER_LOG("%s", "Initializing peers...")
@@ -41,13 +41,13 @@ int main(int argc, char* argv[])
     timeout.tv_sec = 0;
     timeout.tv_usec = 2000;
 
-    int high_sock = echo_sock_fd;
+    int high_sock = http_sock_fd;
 
     // loop waiting for input and then write it back
     while (1)
     {
-        build_fd_sets(echo_sock_fd, &read_fds, &write_fds, &except_fds);
-        high_sock = echo_sock_fd;
+        build_fd_sets(http_sock_fd, &read_fds, &write_fds, &except_fds);
+        high_sock = http_sock_fd;
         for (i = 0; i < MAX_CLIENTS; ++i) {
             if (connection_list[i].socket > high_sock)
                 high_sock = connection_list[i].socket;
@@ -66,8 +66,8 @@ int main(int argc, char* argv[])
 
             default:
 
-                if (FD_ISSET(echo_sock_fd, &read_fds)) {
-                    handle_new_connection(echo_sock_fd, connection_list);
+                if (FD_ISSET(http_sock_fd, &read_fds)) {
+                    handle_new_connection(http_sock_fd, connection_list);
                 }
 
                 if (FD_ISSET(STDIN_FILENO, &except_fds)) {
@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
                     server_shutdown_properly(EXIT_FAILURE);
                 }
 
-                if (FD_ISSET(echo_sock_fd, &except_fds)) {
+                if (FD_ISSET(http_sock_fd, &except_fds)) {
                     SERVER_LOG("%s", "Exception listen socket fd.")
                     server_shutdown_properly(EXIT_FAILURE);
                 }
@@ -103,9 +103,12 @@ int main(int argc, char* argv[])
 
                     // handle HTTP
                     if(connection_list[i].socket != NO_SOCKET) {
-                        if(handle_http(&connection_list[i]) == CLOSE_CONN){
+                        int ret = handle_http(&connection_list[i]);
+                        if(ret == CLOSE_CONN_IMMEDIATELY){
                             SERVER_LOG("Close connection %d", i)
                             close_client_connection(&connection_list[i]);
+                        }else if(ret == CLOSE_CONN){
+
                         }
                     }
                 }
@@ -118,7 +121,7 @@ void server_shutdown_properly(int code)
 {
     int i;
 
-    close(echo_sock_fd);
+    close(http_sock_fd);
 
     for (i = 0; i < MAX_CLIENTS; ++i) {
         if (connection_list[i].socket != NO_SOCKET)

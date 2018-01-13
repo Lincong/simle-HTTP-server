@@ -45,4 +45,16 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+#define CLOSE_CONN 0 // close connection after the sending buffer becomes empty
+#define CLOSE_CONN_IMMEDIATELY 1 // used when some error happened
+#define KEEP_CONN  2
+
+// HTTP protocol states
+#define RECV_HEADER_STATE 1
+#define RECV_BODY_STATE   2
+#define GENERATE_HEADER_STATE 3
+#define SEND_HEADER_STATE 4
+#define SEND_BODY_STATE   5
+#define FINISHED_STATE 6
+
 #endif //COMMON_H

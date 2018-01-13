@@ -130,6 +130,30 @@ void print_message(uint8_t* msg, size_t len)
     printf("\n");
 }
 
+
+/*
+  _     _____ _____ ____    _____  _    ____  _  __
+ | | | |_   _|_   _|  _ \  |_   _|/ \  / ___|| |/ /
+ | |_| | | |   | | | |_) |   | | / _ \ \___ \| ' /
+ |  _  | | |   | | |  __/    | |/ ___ \ ___) | . \
+ |_| |_| |_|   |_| |_|       |_/_/   \_\____/|_|\_\
+
+*/
+
+http_task_t* create_http_task()
+{
+    http_task_t* new_task = (http_task_t*) malloc(1*sizeof(http_task_t));
+    new_task->state = RECV_HEADER_STATE;
+    return new_task;
+}
+
+void destroy_http_task(http_task_t* http_task)
+{
+    if(http_task != NULL)
+        free(http_task);
+}
+
+
 /*
  | '_ \ / _ \/ _ \ '__|
  | |_) |  __/  __/ |
@@ -140,11 +164,14 @@ void print_message(uint8_t* msg, size_t len)
 int delete_peer(peer_t *peer)
 {
     close(peer->socket);
+    destroy_http_task(peer->http_task);
     return 0;
 }
 
 int create_peer(peer_t *peer)
 {
+    peer->http_task = create_http_task();
+    peer->close_conn = false;
     reset_sending_buff(peer);
     reset_receiving_buff(peer);
     return 0;
@@ -253,8 +280,11 @@ int send_to_peer(peer_t *peer)
     // Count bytes to send.
     cbuf_t* sending_buf = &peer->sending_buffer;
     buf_bytes_cnt = sending_buf->num_byte;
-    if(buf_bytes_cnt == 0)
+    if(buf_bytes_cnt == 0) {
+        if(peer->close_conn)
+            return EXIT_FAILURE; // tell the caller to close the connection
         return EXIT_SUCCESS;
+    }
 
     uint8_t data[buf_bytes_cnt];
     buf_bytes_cnt = read_from_sending_buffer(peer, data, buf_bytes_cnt);
@@ -286,6 +316,8 @@ int send_to_peer(peer_t *peer)
         sent_bytes_cnt++;
     }
 
+    if(buf_empty(&(peer->sending_buffer)))
+        return EXIT_FAILURE; // tell the caller to close the connection
     return EXIT_SUCCESS;
 }
 
@@ -325,6 +357,8 @@ int handle_new_connection(int listen_sock, peer_t connection_list[])
         if (connection_list[i].socket == NO_SOCKET) {
             connection_list[i].socket = new_client_sock;
             connection_list[i].addres = client_addr;
+            connection_list[i].close_conn = false;
+            connection_list[i].http_task = create_http_task();
             return 0;
         }
     }
@@ -342,8 +376,10 @@ int close_client_connection(peer_t *client)
 
     close(client->socket);
     client->socket = NO_SOCKET;
+    client->close_conn = false; // may not be necessary
     // reset parameters for buffers
     reset_sending_buff(client);
     reset_receiving_buff(client);
+    destroy_http_task(client->http_task);
     return 0;
 }
