@@ -8,6 +8,7 @@
 #include "parser/parse.h"
 
 int read_header_data(peer_t *peer);
+void print_parse_buf(http_task_t* curr_task);
 void print_req(Request* request);
 
 
@@ -69,6 +70,10 @@ int handle_http(peer_t *peer)
 
             }
             HTTP_LOG("%s", "Data for parser is ready")
+            HTTP_LOG("parse_buf_idx: %d", (int)curr_task->parse_buf_idx)
+            if(HTTP_LOG_ON)
+                print_parse_buf(curr_task);
+
             // let parser take care of received data
             Request *request = parse((char*)curr_task->parse_buf, curr_task->parse_buf_idx, NULL);
             if(request == NULL) {
@@ -181,6 +186,16 @@ int read_header_data(peer_t *peer)
     assert(curr_task->header_term_token_status == HEADER_TERM_STATUS);
     curr_task->header_term_token_status = 0; // reset state to the initial state
     return EXIT_SUCCESS;
+}
+
+
+void print_parse_buf(http_task_t* curr_task)
+{
+    printf("Parse buffer:\n");
+    int i;
+    for(i = 0; i < curr_task->parse_buf_idx; i++)
+        printf("%c", curr_task->parse_buf[i]);
+    printf("Parse buffer ends\n");
 }
 
 void print_req(Request* request)
