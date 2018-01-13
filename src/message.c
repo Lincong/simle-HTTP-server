@@ -143,7 +143,7 @@ void print_message(uint8_t* msg, size_t len)
 http_task_t* create_http_task()
 {
     http_task_t* new_task = (http_task_t*) malloc(1*sizeof(http_task_t));
-    new_task->state = RECV_HEADER_STATE;
+    new_task->state = RECV_HEADER_STATE; // initial state
     new_task->parse_buf_idx = 0;
     new_task->header_term_token_status = 0;
     return new_task;
@@ -275,7 +275,7 @@ int receive_from_peer(peer_t *peer, int (*message_handler)(peer_t *))
 // once send_to_peer() is called, at most all bytes in the sending buffer are sent
 int send_to_peer(peer_t *peer)
 {
-    COMM_LOG("Ready for send() to %s.", peer_get_addres_str(peer))
+    // COMM_LOG("Ready for send() to %s.", peer_get_addres_str(peer))
     ssize_t buf_bytes_cnt;   // bytes that need to be sent
     ssize_t sent_bytes_cnt;    // bytes that have been sent at each iteration
 
@@ -283,12 +283,12 @@ int send_to_peer(peer_t *peer)
     cbuf_t* sending_buf = &peer->sending_buffer;
     buf_bytes_cnt = sending_buf->num_byte;
     if(buf_bytes_cnt == 0) {
-        COMM_LOG("%s", "no data in sending buffer")
+        // COMM_LOG("%s", "no data in sending buffer")
         if(peer->close_conn) {
-            COMM_LOG("%s", "return EXIT_FAILURE")
+            // COMM_LOG("%s", "return EXIT_FAILURE")
             return EXIT_FAILURE; // tell the caller to close the connection
         }
-        return EXIT_SUCCESS;
+        return NOTHING_TO_SEND;
     }
 
     uint8_t data[buf_bytes_cnt];
@@ -364,6 +364,7 @@ int handle_new_connection(int listen_sock, peer_t connection_list[])
             connection_list[i].addres = client_addr;
             connection_list[i].close_conn = false;
             connection_list[i].http_task = create_http_task();
+            COMM_LOG("%s", "Done initializing connection")
             return 0;
         }
     }

@@ -68,6 +68,8 @@ int handle_http(peer_t *peer)
                 return KEEP_CONN;
 
             }
+            HTTP_LOG("%s", "Data for parser is ready")
+            // let parser take care of received data
             Request *request = parse((char*)curr_task->parse_buf, curr_task->parse_buf_idx, NULL);
             if(request == NULL) {
                 HTTP_LOG("%s", "parse() returns NULL")
@@ -177,6 +179,7 @@ int read_header_data(peer_t *peer)
         }
     } // end of while
     assert(curr_task->header_term_token_status == HEADER_TERM_STATUS);
+    curr_task->header_term_token_status = 0; // reset state to the initial state
     return EXIT_SUCCESS;
 }
 

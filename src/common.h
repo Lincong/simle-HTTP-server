@@ -45,6 +45,9 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+// receiving from and sending to peer states
+#define NOTHING_TO_SEND 2
+
 // HTTP handler state
 #define CLOSE_CONN 0 // close connection after the sending buffer becomes empty
 #define CLOSE_CONN_IMMEDIATELY 1 // used when some error happened

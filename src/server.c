@@ -43,6 +43,8 @@ int main(int argc, char* argv[])
 
     int high_sock = http_sock_fd;
 
+    bool has_read;
+    bool has_sent;
     // loop waiting for input and then write it back
     while (1)
     {
@@ -52,7 +54,7 @@ int main(int argc, char* argv[])
             if (connection_list[i].socket > high_sock)
                 high_sock = connection_list[i].socket;
         }
-        SERVER_LOG("%s", "Selecting...")
+//        SERVER_LOG("%s", "Selecting...")
         int activity = select(high_sock + 1, &read_fds, &write_fds, &except_fds, NULL); // &timeout); //  NULL);
 
         switch (activity) {
@@ -81,18 +83,26 @@ int main(int argc, char* argv[])
                 }
 
                 for (i = 0; i < MAX_CLIENTS; ++i) {
+                    has_read = false;
+                    has_sent = false;
                     if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &read_fds)) {
                         if (receive_from_peer(&connection_list[i], &echo_received_message) != EXIT_SUCCESS) {
                             close_client_connection(&connection_list[i]);
                             continue;
+                        }else{
+                            has_read = true;
                         }
                     }
 
-                    if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &write_fds)) {
-                        if (send_to_peer(&connection_list[i]) != EXIT_SUCCESS) {
+                    if (connection_list[i].socket != NO_SOCKET &&
+                        FD_ISSET(connection_list[i].socket, &write_fds)){ //&& !buf_empty(&connection_list[i].sending_buffer) )) {
+                        int ret = send_to_peer(&connection_list[i]);
+                        if (ret == EXIT_FAILURE) {
                             close_client_connection(&connection_list[i]);
                             continue;
-                        }
+                        } else if(ret = EXIT_SUCCESS) {
+                            has_sent = true;
+                        } // otherwise if ret == NOTHING_TO_SEND, do nothing
                     }
 
                     if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &except_fds)) {
@@ -102,7 +112,7 @@ int main(int argc, char* argv[])
                     }
 
                     // handle HTTP
-                    if(connection_list[i].socket != NO_SOCKET) {
+                    if(has_read || has_sent) {
                         int ret = handle_http(&connection_list[i]);
                         if(ret == CLOSE_CONN_IMMEDIATELY){
                             SERVER_LOG("Close connection %d", i)
