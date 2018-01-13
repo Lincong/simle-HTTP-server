@@ -4,7 +4,7 @@
 
 #include "http.h"
 #include "message.h"
-
+#include "parser/parse.h"
 
 ///*
 //  _     _____ _____ ____    _____  _    ____  _  __
@@ -141,6 +141,18 @@
                                          |_|
 */
 
+char *WWW_FOLDER;
+
+///* Defineds tokens */
+//char *clrf = "\r\n";
+//char *sp = " ";
+//char *http_version = "HTTP/1.1";
+//char *colon = ":";
+//
+///* Constants string values */
+//char *default_index_file = "index.html";
+//char *server_str = "Liso/1.0";
+
 int handle_http(peer_t *peer)
 {
     /*
@@ -166,7 +178,31 @@ int handle_http(peer_t *peer)
     // SEND_HEADER_STATE -> SEND_BODY_STATE -> FINISHED_STATE
     while(curr_task->state != FINISHED_STATE){
         if(curr_task->state == RECV_HEADER_STATE){
+            // read bytes from receiving buffer into parser buffer
+            int ret = read_header_data(peer);
+            if(ret == PARSER_BUF_OVERFLOW) {
+                return CLOSE_CONN_IMMEDIATELY; // invalid header request
 
+            } else if(ret == EMPTY_RECV_BUF) {
+                return KEEP_CONN;
+
+            }
+            Request *request = parse((char*)curr_task->parse_buf, curr_task->parse_buf_idx, NULL);
+            if(request == NULL)
+                return CLOSE_CONN_IMMEDIATELY; // invalid header request
+
+            //Just printing everything
+            int index;
+            printf("Http Method: %s\n",request->http_method);
+            printf("Http Version: %s\n",request->http_version);
+            printf("Http Uri: %s\n",request->http_uri);
+            for(index = 0;index < request->header_count;index++){
+                printf("Request Header\n");
+                printf("Header name: %s\nHeader Value: %s\n\n",request->headers[index].header_name,request->headers[index].header_value);
+            }
+            free(request->headers);
+            free(request);
+            return CLOSE_CONN_IMMEDIATELY; // test
 
             curr_task->state = RECV_BODY_STATE;
 
@@ -192,4 +228,78 @@ int handle_http(peer_t *peer)
     }
 
     return CLOSE_CONN;
+}
+
+
+// HTTP request handler helpers
+
+// read bytes from receiving buffer of the client to parser buffer of it
+// return EMPTY_RECV_BUF | EXIT_SUCCESS | PARSER_BUF_OVERFLOW
+int read_header_data(peer_t *peer)
+{
+    assert(peer != NULL);
+    http_task_t* curr_task = peer->http_task;
+    assert(curr_task != NULL);
+    uint8_t * parse_buf = curr_task->parse_buf;
+    char* terminator = "\r\n\r\n";
+    int i;
+
+    uint8_t data;
+    while(curr_task->header_term_token_status != HEADER_TERM_STATUS){
+        if(buf_empty(&peer->receiving_buffer)) // no more to read from the receiving buffer
+            return EMPTY_RECV_BUF;
+        buf_get(&peer->receiving_buffer, &data);
+
+        if(curr_task->header_term_token_status == 0){
+            if(data == terminator[0])
+                curr_task->header_term_token_status = 1;
+            // otherwise, state is still 0
+
+        } else if(curr_task->header_term_token_status == 1) {
+            if(data == terminator[1]) { // second character is '\n'
+                curr_task->header_term_token_status = 2; // move to next state
+
+            } else if(data != terminator[0]){
+               curr_task->header_term_token_status = 0; // start over
+            }
+
+        } else if(curr_task->header_term_token_status == 2) {
+            if(data == terminator[2]) { // second character is '\r'
+                curr_task->header_term_token_status = 3; // move to next state
+
+            } else if(data == terminator[0]) {
+                curr_task->header_term_token_status = 1; // go back to the second state
+
+            } else {
+                curr_task->header_term_token_status = 0; // start over
+
+            }
+
+        } else if(curr_task->header_term_token_status == 3) {
+            if(data == terminator[3]) { // second character is '\n'
+                curr_task->header_term_token_status = HEADER_TERM_STATUS; // move to next state
+
+            } else if(data == terminator[0]) {
+                curr_task->header_term_token_status = 1; // go back to the second state
+
+            } else {
+                curr_task->header_term_token_status = 0; // start over
+
+            }
+
+        } else {
+            printf("Should not get here!");
+            assert(false);
+        }
+
+        // put byte into parser header
+        parse_buf[curr_task->parse_buf_idx] = data;
+        curr_task->parse_buf_idx++;
+        if(curr_task->parse_buf_idx == BUF_DATA_MAXSIZE){ // parser buffer overflow
+            if(curr_task->header_term_token_status != HEADER_TERM_STATUS)
+                return PARSER_BUF_OVERFLOW;
+        }
+    } // end of while
+    assert(curr_task->header_term_token_status == HEADER_TERM_STATUS);
+    return EXIT_SUCCESS;
 }

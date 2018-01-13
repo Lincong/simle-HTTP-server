@@ -41,7 +41,9 @@ bool buf_full(cbuf_t* cbuf);
 
 typedef struct {
     int state;
-    cbuf_t parse_buf;
+    uint8_t parse_buf[BUF_DATA_MAXSIZE];
+    size_t parse_buf_idx;
+    int header_term_token_status; // when it is 4, it means "\r\n\r\n" is matched, 3 means "\r\n\r" is matched and etc
     cbuf_t response_buf; // might need to make it be dynamic buffer
     FILE * fp;           // use fgetc() to get one byte at a time
 } http_task_t;

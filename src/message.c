@@ -144,6 +144,8 @@ http_task_t* create_http_task()
 {
     http_task_t* new_task = (http_task_t*) malloc(1*sizeof(http_task_t));
     new_task->state = RECV_HEADER_STATE;
+    new_task->parse_buf_idx = 0;
+    new_task->header_term_token_status = 0;
     return new_task;
 }
 
@@ -316,7 +318,7 @@ int send_to_peer(peer_t *peer)
         sent_bytes_cnt++;
     }
 
-    if(buf_empty(&(peer->sending_buffer)))
+    if(peer->close_conn && buf_empty(&(peer->sending_buffer)))
         return EXIT_FAILURE; // tell the caller to close the connection
     return EXIT_SUCCESS;
 }
