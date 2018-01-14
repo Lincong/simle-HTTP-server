@@ -122,13 +122,14 @@ int handle_http(peer_t *peer)
                 return KEEP_CONN;
 
             // go to next state basing on the response code
-            switch (response_code){
-                case 404:
-                    curr_task->state = FINISHED_STATE;
-                    break;
-                default:
-                    break;
+            if(response_code == 404 ||
+               response_code == 411 ||
+               response_code == 500 ||
+               response_code == 501 ||
+               response_code == 505) {
+                curr_task->state = FINISHED_STATE;
             }
+
 
             // curr_task->state = SEND_BODY_STATE;
 
@@ -260,10 +261,33 @@ int generate_nonbody_response(http_task_t* http_task, int response_code)
 {
     assert(valid_response_code(response_code));
     switch (response_code){
-        case 404:
+        case 400:
             generate_response_status_line(http_task, CODE_400, BAD_REQUEST);
+            generate_response_header(http_task, CONNECTION, CLOSE);
             generate_response_msg(http_task, CLRF);
-            // generate_response_header(http_task, CONNECTION, CLOSE);
+            return SEND_HEADER_STATE;
+
+        case 404:
+            generate_response_status_line(http_task, CODE_404, NOT_FOUND);
+            generate_response_msg(http_task, CLRF);
+            return SEND_HEADER_STATE;
+
+        case 411:
+            generate_response_status_line(http_task, CODE_411, LENGTH_REQUIRE);
+            generate_response_header(http_task, CONNECTION, CLOSE);
+            generate_response_msg(http_task, CLRF);
+            return SEND_HEADER_STATE;
+
+        case 500:
+            generate_response_status_line(http_task, CODE_500, INTERNAL_SERVER_ERROR);
+            generate_response_header(http_task, CONNECTION, CLOSE);
+            generate_response_msg(http_task, CLRF);
+            return SEND_HEADER_STATE;
+
+        case 501:
+            generate_response_status_line(http_task, CODE_501, NOT_IMPLEMENTED);
+            generate_response_header(http_task, CONNECTION, CLOSE);
+            generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
         default:
             break;
