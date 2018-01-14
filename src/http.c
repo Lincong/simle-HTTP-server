@@ -26,6 +26,11 @@ void get_mime_type(char *mime, char *type);
 char* get_header_value(Request *request, char * hname);
 int generate_GET_header(http_task_t* http_task, Request* request, bool last_req);
 int stream_file_content(peer_t* peer);
+
+void chopN(char *str, size_t n);
+bool starts_with(const char *pre, const char *str);
+void remove_redundancy_from_uri(char* uri);
+
 /*
   _   _ _____ _____ ____    ____                            _     _                     _ _
  | | | |_   _|_   _|  _ \  |  _ \ ___  __ _ _   _  ___  ___| |_  | |__   __ _ _ __   __| | | ___  ___
@@ -441,6 +446,31 @@ char* get_header_value(Request *request, char * hname) {
     return "";
 }
 
+void chopN(char *str, size_t n)
+{
+    assert(n != 0 && str != 0);
+    size_t len = strlen(str);
+    if (n > len)
+        return;  // Or: n = len;
+    memmove(str, str+n, len - n + 1);
+}
+
+void remove_redundancy_from_uri(char* uri)
+{
+    char* redundant_str = "http://";
+    if(starts_with(redundant_str, uri)){
+        chopN(uri, strlen(redundant_str));
+    }
+    uri[strlen(uri) - 1] = 0;
+}
+
+bool starts_with(const char *pre, const char *str)
+{
+    size_t lenpre = strlen(pre),
+            lenstr = strlen(str);
+    return lenstr < lenpre ? false : strncmp(pre, str, lenpre) == 0;
+}
+
 int generate_GET_header(http_task_t* http_task, Request* request, bool last_req)
 {
     HTTP_LOG("%s", "In handle_GET");
@@ -451,10 +481,14 @@ int generate_GET_header(http_task_t* http_task, Request* request, bool last_req)
     char last_modified[256];
     size_t content_length;
     char content_len_str[16];
+    char uri[4096];
 
     strcpy(fullpath, WWW_DIR);
+
+    remove_redundancy_from_uri(request->http_uri);
     strcat(fullpath, request->http_uri);
 
+// for testing
     if (requested_path_is_dir(fullpath)) // end with "/"
         strcat(fullpath, INDEX_FILE);
 
