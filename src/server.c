@@ -7,6 +7,7 @@
 #include "logger.h"
 #include "message.h"
 #include "http.h"
+#include "file_handlers.h"
 
 int http_sock_fd; // a file descriptor for our "listening" socket.
 peer_t connection_list[MAX_CLIENTS];
@@ -19,7 +20,10 @@ int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *
 int main(int argc, char* argv[])
 {
     // check if resources folder exists
-
+    if(!is_dir(WWW_DIR)){
+        fprintf(stderr, "WWW path is wrong\n");
+        exit(EXIT_FAILURE);
+    }
 
     SERVER_LOG("%s", "Setting up signal handlers...")
     if (setup_signals() != 0)

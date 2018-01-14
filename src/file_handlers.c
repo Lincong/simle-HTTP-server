@@ -4,6 +4,35 @@
 
 #include "file_handlers.h"
 
+
+bool is_dir(const char *path)
+{
+    struct stat sb;
+    if(stat(path, &sb) != 0 ) {
+        fprintf(stderr, "Error with the path\n");
+        return false;
+    }
+    return S_ISDIR(sb.st_mode);
+}
+
+bool is_regular_file(const char *path)
+{
+    struct stat sb;
+    return (stat(path, &sb) == 0 && S_ISREG(sb.st_mode));
+}
+
+/*
+ * Check whether a file path is directory.
+ * Return 1 if it is, 0 otherwise.
+ */
+int requested_path_is_dir(const char *path) {
+    size_t len = strlen(path);
+    if (path[len-1] == '/') {
+        return 1;
+    }
+    return 0;
+}
+
 /*
  * Wrapper for mkdir sys call.
  * If the directory already exists, do nothing.

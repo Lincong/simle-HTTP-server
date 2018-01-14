@@ -9,7 +9,9 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
-int is_dir(const char *path);
+bool is_dir(const char *path);
+bool is_regular_file(const char *path);
+int requested_path_is_dir(const char *path);
 void get_extension(const char *, char*);
 void str_tolower(char *);
 void get_curr_time(char *, size_t);
