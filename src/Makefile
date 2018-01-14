@@ -28,6 +28,7 @@ OBJ+=$(OBJ_DIR)/utility.o
 OBJ+=$(OBJ_DIR)/message.o
 OBJ+=$(OBJ_DIR)/connection_handlers.o
 OBJ+=$(OBJ_DIR)/http.o
+OBJ+=$(OBJ_DIR)/file_handlers.o
 
 # add parser objects
 OBJ+=$(OBJ_DIR)/y.tab.o
@@ -56,6 +57,9 @@ $(OBJ_DIR)/connection_handlers.o: connection_handlers.c
 	$(build_obj)
 
 $(OBJ_DIR)/http.o: http.c
+	$(build_obj)
+
+$(OBJ_DIR)/file_handlers.o: file_handlers.c
 	$(build_obj)
 
 # rules for making parser objects

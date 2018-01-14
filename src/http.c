@@ -6,6 +6,7 @@
 #include "message.h"
 #include "logger.h"
 #include "parser/parse.h"
+#include "file_handlers.h"
 
 int read_header_data(peer_t *peer);
 void print_parse_buf(http_task_t* curr_task);
@@ -20,8 +21,7 @@ int generate_response_msg(http_task_t* http_task, char *msg);
 
 int send_nonbody_reponse(peer_t *peer);
 
-void send_404(http_task_t* http_task);
-
+int handle_GET(http_task_t* http_task);
 /*
   _   _ _____ _____ ____    ____                            _     _                     _ _
  | | | |_   _|_   _|  _ \  |  _ \ ___  __ _ _   _  ___  ___| |_  | |__   __ _ _ __   __| | | ___  ___
@@ -101,6 +101,8 @@ int handle_http(peer_t *peer)
                 response_code = NOT_IMPLEMENTED_NUM;
 
             } else if (!strcmp(http_method, "GET")) {
+                // TODO:
+                response_code = handle_GET(curr_task);
 
             } else if (!strcmp(http_method, "POST")) {
                 response_code = NOT_IMPLEMENTED_NUM;
@@ -127,7 +129,7 @@ int handle_http(peer_t *peer)
             // after generate_response_header, either stays in the current state or go to send header state
             curr_task->state = generate_nonbody_response(curr_task, response_code);
 
-        }else if(curr_task->state == SEND_HEADER_STATE){
+        } else if(curr_task->state == SEND_HEADER_STATE) {
             COMM_LOG("%s", "In SEND_HEADER_STATE")
             // copy data from the response buffer to sending buffer of the current connection
             int ret = send_nonbody_reponse(peer);
@@ -162,7 +164,6 @@ int handle_http(peer_t *peer)
     return CLOSE_CONN;
 }
 
-
 // HTTP request handler helpers
 
 // read bytes from receiving buffer of the client to parser buffer of it
@@ -173,8 +174,7 @@ int read_header_data(peer_t *peer)
     http_task_t* curr_task = peer->http_task;
     assert(curr_task != NULL);
     uint8_t * parse_buf = curr_task->parse_buf;
-    char* terminator = "\r\n\r\n";
-
+    // char* terminator = "\r\n\r\n";
     uint8_t data;
     while(curr_task->header_term_token_status != HEADER_TERM_STATUS){
         if(buf_empty(&peer->receiving_buffer)) // no more to read from the receiving buffer
@@ -182,23 +182,23 @@ int read_header_data(peer_t *peer)
         buf_get(&peer->receiving_buffer, &data);
 
         if(curr_task->header_term_token_status == 0){
-            if(data == terminator[0])
+            if(data == CL)
                 curr_task->header_term_token_status = 1;
             // otherwise, state is still 0
 
         } else if(curr_task->header_term_token_status == 1) {
-            if(data == terminator[1]) { // second character is '\n'
+            if(data == RF) { // second character is '\n'
                 curr_task->header_term_token_status = 2; // move to next state
 
-            } else if(data != terminator[0]){
+            } else if(data != CL){
                curr_task->header_term_token_status = 0; // start over
             }
 
         } else if(curr_task->header_term_token_status == 2) {
-            if(data == terminator[2]) { // second character is '\r'
+            if(data == CL) { // second character is '\r'
                 curr_task->header_term_token_status = 3; // move to next state
 
-            } else if(data == terminator[0]) {
+            } else if(data == CL) {
                 curr_task->header_term_token_status = 1; // go back to the second state
 
             } else {
@@ -207,10 +207,10 @@ int read_header_data(peer_t *peer)
             }
 
         } else if(curr_task->header_term_token_status == 3) {
-            if(data == terminator[3]) { // second character is '\n'
+            if(data == RF) { // second character is '\n'
                 curr_task->header_term_token_status = HEADER_TERM_STATUS; // move to next state
 
-            } else if(data == terminator[0]) {
+            } else if(data == CL) {
                 curr_task->header_term_token_status = 1; // go back to the second state
 
             } else {
@@ -235,7 +235,6 @@ int read_header_data(peer_t *peer)
     curr_task->header_term_token_status = 0; // reset state to the initial state
     return EXIT_SUCCESS;
 }
-
 
 void print_parse_buf(http_task_t* curr_task)
 {
@@ -367,10 +366,8 @@ int send_nonbody_reponse(peer_t *peer)
     }
     return EXIT_SUCCESS;
 }
-// write 404 header to the response buffer of that client
-void send_404(http_task_t* http_task)
+
+int handle_GET(http_task_t* http_task)
 {
-//    send_response(client_buffer, (char*)"400", (char*)"Bad Request");
-//    send_header(client_buffer, "Connection", "Close");
-//    send_msg(client_buffer, clrf);
+    return EXIT_SUCCESS;
 }

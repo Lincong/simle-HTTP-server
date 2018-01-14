@@ -18,6 +18,9 @@ int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *
 
 int main(int argc, char* argv[])
 {
+    // check if resources folder exists
+
+
     SERVER_LOG("%s", "Setting up signal handlers...")
     if (setup_signals() != 0)
         exit(EXIT_FAILURE);
