@@ -8,6 +8,7 @@ starter_code_2
 *.yy.c
 *.yy.h
 parser_exe
+server
 
 www
 objs

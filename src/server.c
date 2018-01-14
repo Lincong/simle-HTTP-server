@@ -21,32 +21,12 @@ void server_shutdown_properly(int code);
 void handle_signal_action(int sig_number);
 int setup_signals();
 int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds);
+void init_server(int argc, char* argv[]); // set http port and other parameters
 
 int main(int argc, char* argv[])
 {
 
-    /* Check usage */
-    if (argc < 8) {
-        fprintf(stdout, USAGE);
-        http_port = 9999;
-        WWW_DIR = DEFAULT_WWW_DIR;
-
-    } else {
-        /* Read parameters from command line arguments */
-        http_port = atoi(argv[1]);   /* port param */
-        https_port = atoi(argv[2]); /* https port param */
-        // LOGFILE = argv[3];          /* log file param */
-        // LOCKFILE = argv[4];         /* lock file param */
-        WWW_DIR = argv[5];       /* www folder param */
-        // CGI_scripts = argv[6];      /* cgi script param */
-        // PRIVATE_KEY_FILE = argv[7]; /* private key file param */
-        // CERT_FILE = argv[8];        /* certificate file param */
-    }
-    // check if resources folder exists
-    if(!is_dir(WWW_DIR)){
-        fprintf(stderr, "WWW path is wrong\n");
-        exit(EXIT_FAILURE);
-    }
+    init_server(argc, argv);
 
     SERVER_LOG("%s", "Setting up signal handlers...")
     if (setup_signals() != 0)
@@ -127,10 +107,13 @@ int main(int argc, char* argv[])
                     if (connection_list[i].socket != NO_SOCKET &&
                         FD_ISSET(connection_list[i].socket, &write_fds)){ //&& !buf_empty(&connection_list[i].sending_buffer) )) {
                         int ret = send_to_peer(&connection_list[i]);
+//                        SERVER_LOG("ret: %d", ret)
                         if (ret == EXIT_FAILURE) {
                             close_client_connection(&connection_list[i]);
                             continue;
-                        } else if(ret = EXIT_SUCCESS) {
+
+                        } else if(ret == EXIT_SUCCESS) {
+                            SERVER_LOG("%s", "send_to_peer returns EXIT_SUCCESS!")
                             has_sent = true;
                         } // otherwise if ret == NOTHING_TO_SEND, do nothing
                     }
@@ -225,4 +208,30 @@ int setup_signals()
     }
 
     return 0;
+}
+
+void init_server(int argc, char* argv[])
+{
+    /* Check usage */
+    if (argc < 8) {
+        fprintf(stdout, USAGE);
+        http_port = 9999;
+        WWW_DIR = DEFAULT_WWW_DIR;
+
+    } else {
+        /* Read parameters from command line arguments */
+        http_port = atoi(argv[1]);   /* port param */
+        https_port = atoi(argv[2]); /* https port param */
+        // LOGFILE = argv[3];          /* log file param */
+        // LOCKFILE = argv[4];         /* lock file param */
+        WWW_DIR = argv[5];       /* www folder param */
+        // CGI_scripts = argv[6];      /* cgi script param */
+        // PRIVATE_KEY_FILE = argv[7]; /* private key file param */
+        // CERT_FILE = argv[8];        /* certificate file param */
+    }
+    // check if resources folder exists
+    if(!is_dir(WWW_DIR)){
+        fprintf(stderr, "WWW path is wrong\n");
+        exit(EXIT_FAILURE);
+    }
 }

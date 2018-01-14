@@ -52,19 +52,6 @@ void remove_redundancy_from_uri(char* uri);
 
 int handle_http(peer_t *peer)
 {
-    /*
-       // process input part
-  1. read all data from the recv buffer and process it
-  2. generate Request
-  3. Use Request object to generate Response object
-  4. Put the response object in the back_log (queue)
-
-  // generate output part
-  5. check the state of the current "http_task"
-  6. do corresponding actions
-  7. if the current "http_task" is finished. Get another one from the queue and repeat from step 5 until the send buffer is filled up
-  8. return
-     */
     HTTP_LOG("%s", "In HTTP handler!")
     http_task_t* curr_task = peer->http_task;
     if(curr_task == NULL){
@@ -73,15 +60,19 @@ int handle_http(peer_t *peer)
     }
     int response_code = -1;
 
+    static bool last_request;
+    static int method_type;
     // RECV_HEADER_STATE -> RECV_BODY_STATE -> GENERATE_HEADER_STATE ->
     // SEND_HEADER_STATE -> SEND_BODY_STATE -> FINISHED_STATE
 
-    bool last_request = false;
-    int method_type = NO_METHOD;
+    // bool last_request = false;
+    // int method_type = NO_METHOD;
     while(curr_task->state != FINISHED_STATE){
         if(curr_task->state == RECV_HEADER_STATE){
             // read bytes from receiving buffer into parser buffer
             COMM_LOG("%s", "In RECV_HEADER_STATE")
+            last_request = false;
+            method_type = NO_METHOD;
             int ret = read_header_data(peer);
             if(ret == PARSER_BUF_OVERFLOW) {
                 return CLOSE_CONN_IMMEDIATELY; // invalid header request
@@ -189,7 +180,7 @@ int handle_http(peer_t *peer)
 
             assert(method_type == GET_METHOD); // for now only GET gets here
             int ret = stream_file_content(peer);
-            if(ret == STREAM_FILE_NOT_DONE)
+            if(ret == STREAM_FILE_NOT_DONE) // if file content has not been all sent out
                 return KEEP_CONN;
 
             else if(ret == STREAM_FILE_ERROR)
@@ -461,7 +452,8 @@ void remove_redundancy_from_uri(char* uri)
     if(starts_with(redundant_str, uri)){
         chopN(uri, strlen(redundant_str));
     }
-    uri[strlen(uri) - 1] = 0;
+    if(uri[strlen(uri) - 1] == '/')
+        uri[strlen(uri) - 1] = 0;
 }
 
 bool starts_with(const char *pre, const char *str)
@@ -548,19 +540,22 @@ int stream_file_content(peer_t* peer)
 
     cbuf_t* sending_buf = &peer->sending_buffer;
     char data;
-    while(!buf_empty(sending_buf)) {
+    while(!buf_full(sending_buf)) {
         data = (char)fgetc(peer->http_task->fp);
         if(ferror(peer->http_task->fp)){
             clearerr(peer->http_task->fp);
             fclose(peer->http_task->fp);
+            HTTP_LOG("%s", "fgetc() returns error")
             return STREAM_FILE_ERROR;
         }
 
         buf_put(sending_buf, (uint8_t)data);
         if(feof(peer->http_task->fp)){
             fclose(peer->http_task->fp);
+            HTTP_LOG("%s", "fget() returns eof")
             return STREAM_FILE_DONE;
         }
     }
+    HTTP_LOG("%s", "Buffer is full")
     return STREAM_FILE_NOT_DONE;
 }

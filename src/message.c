@@ -292,7 +292,7 @@ int send_to_peer(peer_t *peer)
         }
         return NOTHING_TO_SEND;
     }
-
+    COMM_LOG("# of bytes in sending_buffer is: %d", buf_bytes_cnt)
     uint8_t data[buf_bytes_cnt];
     buf_bytes_cnt = read_from_sending_buffer(peer, data, buf_bytes_cnt);
     COMM_LOG("Let's try to send() %zd bytes...", buf_bytes_cnt)
@@ -315,7 +315,7 @@ int send_to_peer(peer_t *peer)
     } else if (sent_bytes_cnt == 0) {
         COMM_LOG("%s", "send()'ed 0 bytes. It seems that peer can't accept data right now. Try again later.")
     }
-
+    COMM_LOG("# of bytes in sending_buffer after sending is: %d", (int)sending_buf->num_byte)
     sent_bytes_cnt = (sent_bytes_cnt < 0 ? 0 : sent_bytes_cnt);
     // write the unsent bytes back to the sending buffer
     while(sent_bytes_cnt < buf_bytes_cnt){
@@ -323,9 +323,12 @@ int send_to_peer(peer_t *peer)
         sent_bytes_cnt++;
     }
 
-    if(peer->close_conn && buf_empty(&(peer->sending_buffer)))
+    if(peer->close_conn && buf_empty(&(peer->sending_buffer))) {
+        COMM_LOG("%s", "send_to_peer returns EXIT_FAILURE")
         return EXIT_FAILURE; // tell the caller to close the connection
-    return EXIT_SUCCESS;
+    }
+    COMM_LOG("%s", "send_to_peer returns EXIT_SUCCESS")
+    return 0;
 }
 
 /*
