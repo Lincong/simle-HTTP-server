@@ -24,8 +24,8 @@ int generate_response_msg(http_task_t* http_task, char *msg);
 int send_nonbody_reponse(peer_t *peer);
 void get_mime_type(char *mime, char *type);
 char* get_header_value(Request *request, char * hname);
-
 int generate_GET_header(http_task_t* http_task, Request* request, bool last_req);
+int stream_file_content(peer_t* peer);
 /*
   _   _ _____ _____ ____    ____                            _     _                     _ _
  | | | |_   _|_   _|  _ \  |  _ \ ___  __ _ _   _  ___  ___| |_  | |__   __ _ _ __   __| | | ___  ___
@@ -162,7 +162,7 @@ int handle_http(peer_t *peer)
             } else { // take care of normal states
 
                 if(method_type == GET_METHOD) {
-                    curr_task->state = FINISHED_STATE;// SEND_BODY_STATE;
+                    curr_task->state = SEND_BODY_STATE;
 
                 }else if(method_type == HEAD_METHOD) {
                     curr_task->state = FINISHED_STATE;
@@ -183,10 +183,19 @@ int handle_http(peer_t *peer)
             COMM_LOG("%s", "In SEND_BODY_STATE")
 
             assert(method_type == GET_METHOD); // for now only GET gets here
+            int ret = stream_file_content(peer);
+            if(ret == STREAM_FILE_NOT_DONE)
+                return KEEP_CONN;
 
+            else if(ret == STREAM_FILE_ERROR)
+                return CLOSE_CONN_IMMEDIATELY;
 
+            else if(ret == STREAM_FILE_DONE)
+                curr_task->state = FINISHED_STATE;
 
-            curr_task->state = FINISHED_STATE;
+            else
+                assert(false); // shouldn't get here
+
         } else {
             fprintf(stderr, "Shouldn't get to this unknown state");
             exit(EXIT_FAILURE);
@@ -194,7 +203,7 @@ int handle_http(peer_t *peer)
         }
     }
 
-    return CLOSE_CONN;
+    return (last_request ? CLOSE_CONN : KEEP_CONN);
 }
 
 // HTTP request handler helpers
@@ -496,7 +505,28 @@ int generate_GET_header(http_task_t* http_task, Request* request, bool last_req)
     // move on to send file content
     HTTP_LOG("%s", "End of generate_GET_header");
     return OK_NUM;
-    // TODO
-//    printf("Not implemented!\n");
-//    return NOT_IMPLEMENTED_NUM;
+}
+
+int stream_file_content(peer_t* peer)
+{
+    if(peer == NULL) return STREAM_FILE_ERROR;
+    if(peer->http_task == NULL) return STREAM_FILE_ERROR;
+
+    cbuf_t* sending_buf = &peer->sending_buffer;
+    char data;
+    while(!buf_empty(sending_buf)) {
+        data = (char)fgetc(peer->http_task->fp);
+        if(ferror(peer->http_task->fp)){
+            clearerr(peer->http_task->fp);
+            fclose(peer->http_task->fp);
+            return STREAM_FILE_ERROR;
+        }
+
+        buf_put(sending_buf, (uint8_t)data);
+        if(feof(peer->http_task->fp)){
+            fclose(peer->http_task->fp);
+            return STREAM_FILE_DONE;
+        }
+    }
+    return STREAM_FILE_NOT_DONE;
 }

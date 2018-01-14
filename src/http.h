@@ -57,6 +57,10 @@
 #define HEAD_METHOD 2
 #define POST_METHOD 3
 
+#define STREAM_FILE_NOT_DONE 0
+#define STREAM_FILE_DONE  1
+#define STREAM_FILE_ERROR 2
+
 int handle_http(peer_t *peer);
 
 #endif //HTTP_H
