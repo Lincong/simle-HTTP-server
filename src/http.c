@@ -21,7 +21,7 @@ int generate_response_msg(http_task_t* http_task, char *msg);
 
 int send_nonbody_reponse(peer_t *peer);
 
-int handle_GET(http_task_t* http_task);
+int handle_GET(http_task_t* http_task, Request* request);
 /*
   _   _ _____ _____ ____    ____                            _     _                     _ _
  | | | |_   _|_   _|  _ \  |  _ \ ___  __ _ _   _  ___  ___| |_  | |__   __ _ _ __   __| | | ___  ___
@@ -102,7 +102,7 @@ int handle_http(peer_t *peer)
 
             } else if (!strcmp(http_method, "GET")) {
                 // TODO:
-                response_code = handle_GET(curr_task);
+                response_code = handle_GET(curr_task, request);
 
             } else if (!strcmp(http_method, "POST")) {
                 response_code = NOT_IMPLEMENTED_NUM;
@@ -367,7 +367,21 @@ int send_nonbody_reponse(peer_t *peer)
     return EXIT_SUCCESS;
 }
 
-int handle_GET(http_task_t* http_task)
+int handle_GET(http_task_t* http_task, Request* request)
 {
+    char fullpath[4096];
+    char extension[64];
+    char mime_type[64];
+    char curr_time[256];
+    char last_modified[256];
+    size_t content_length;
+    char content_len_str[16];
+
+    strcpy(fullpath, WWW_FOLDER);
+    strcat(fullpath, request->http_uri);
+
+    if (is_dir(fullpath)) strcat(fullpath, INDEX_FILE);
+    // TODO
+
     return EXIT_SUCCESS;
 }

@@ -47,6 +47,8 @@
 #define CONNECTION ((char*)"Connection")
 #define CLOSE ((char*)"Close")
 
+#define INDEX_FILE ((char*)"Index.html")
+
 int handle_http(peer_t *peer);
 
 #endif //HTTP_H
