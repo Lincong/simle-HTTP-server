@@ -22,6 +22,13 @@
 
 // HTTP responses codes
 
+#define BAD_REQUEST_NUM 400
+#define NOT_FOUND_NUM   404
+#define LENGTH_REQUIRE_NUM 411
+#define INTERNAL_SERVER_ERROR_NUM 500
+#define NOT_IMPLEMENTED_NUM 501
+#define HTTP_VERSION_NOT_SUPPORTED_NUM 505
+
 #define CODE_404 ((char*)"404")
 #define CODE_400 ((char*)"400")
 #define CODE_411 ((char*)"411")

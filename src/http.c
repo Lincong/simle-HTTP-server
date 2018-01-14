@@ -86,7 +86,7 @@ int handle_http(peer_t *peer)
                 print_parse_buf(curr_task);
 
             // let parser take care of received data
-            Request *request = parse((char*)curr_task->parse_buf, curr_task->parse_buf_idx);
+            Request *request = parse((char*)curr_task->parse_buf, (int)curr_task->parse_buf_idx);
             if(request == NULL) {
                 HTTP_LOG("%s", "parse() returns NULL")
                 exit(0);
@@ -96,8 +96,21 @@ int handle_http(peer_t *peer)
                 print_req(request);
 
             // handle request
+            char * http_method = request->http_method;
+            if (!strcmp(http_method, "HEAD")) {
+                response_code = NOT_IMPLEMENTED_NUM;
+
+            } else if (!strcmp(http_method, "GET")) {
+
+            } else if (!strcmp(http_method, "POST")) {
+                response_code = NOT_IMPLEMENTED_NUM;
+
+            } else { // not implemented
+                response_code = NOT_IMPLEMENTED_NUM;
+            }
+
             // 404
-            response_code = 404;
+            response_code = BAD_REQUEST_NUM;
 
             curr_task->state = GENERATE_HEADER_STATE;
 
@@ -122,11 +135,12 @@ int handle_http(peer_t *peer)
                 return KEEP_CONN;
 
             // go to next state basing on the response code
-            if(response_code == 404 ||
-               response_code == 411 ||
-               response_code == 500 ||
-               response_code == 501 ||
-               response_code == 505) {
+            if(response_code == BAD_REQUEST_NUM ||
+               response_code == NOT_FOUND_NUM ||
+               response_code == LENGTH_REQUIRE_NUM ||
+               response_code == INTERNAL_SERVER_ERROR_NUM ||
+               response_code == NOT_IMPLEMENTED_NUM ||
+               response_code == HTTP_VERSION_NOT_SUPPORTED_NUM) {
                 curr_task->state = FINISHED_STATE;
             }
 
@@ -261,34 +275,41 @@ int generate_nonbody_response(http_task_t* http_task, int response_code)
 {
     assert(valid_response_code(response_code));
     switch (response_code){
-        case 400:
+        case BAD_REQUEST_NUM:
             generate_response_status_line(http_task, CODE_400, BAD_REQUEST);
             generate_response_header(http_task, CONNECTION, CLOSE);
             generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
 
-        case 404:
+        case NOT_FOUND_NUM:
             generate_response_status_line(http_task, CODE_404, NOT_FOUND);
             generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
 
-        case 411:
+        case LENGTH_REQUIRE_NUM:
             generate_response_status_line(http_task, CODE_411, LENGTH_REQUIRE);
             generate_response_header(http_task, CONNECTION, CLOSE);
             generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
 
-        case 500:
+        case INTERNAL_SERVER_ERROR_NUM:
             generate_response_status_line(http_task, CODE_500, INTERNAL_SERVER_ERROR);
             generate_response_header(http_task, CONNECTION, CLOSE);
             generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
 
-        case 501:
+        case NOT_IMPLEMENTED_NUM:
             generate_response_status_line(http_task, CODE_501, NOT_IMPLEMENTED);
             generate_response_header(http_task, CONNECTION, CLOSE);
             generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
+
+        case HTTP_VERSION_NOT_SUPPORTED_NUM:
+            generate_response_status_line(http_task, CODE_505, HTTP_VERSION_NOT_SUPPORTED);
+            generate_response_header(http_task, CONNECTION, CLOSE);
+            generate_response_msg(http_task, CLRF);
+            return SEND_HEADER_STATE;
+
         default:
             break;
     }
