@@ -21,14 +21,16 @@
 #define EMPTY_RECV_BUF 3
 
 // HTTP responses codes
-
+#define OK_NUM 200
 #define BAD_REQUEST_NUM 400
 #define NOT_FOUND_NUM   404
 #define LENGTH_REQUIRE_NUM 411
 #define INTERNAL_SERVER_ERROR_NUM 500
 #define NOT_IMPLEMENTED_NUM 501
 #define HTTP_VERSION_NOT_SUPPORTED_NUM 505
+#define HEADER_GENRATE_ERROR -1
 
+#define CODE_200 ((char*)"200")
 #define CODE_404 ((char*)"404")
 #define CODE_400 ((char*)"400")
 #define CODE_411 ((char*)"411")
@@ -37,6 +39,7 @@
 #define CODE_505 ((char*)"505")
 
 // HTTP response reasons
+#define OK ((char*)"OK")
 #define NOT_FOUND ((char*)"Not Found")
 #define BAD_REQUEST ((char*)"Bad Request")
 #define LENGTH_REQUIRE ((char*)"Length Require")
@@ -46,8 +49,13 @@
 
 #define CONNECTION ((char*)"Connection")
 #define CLOSE ((char*)"Close")
-
+#define KEEP_ALIVE ((char*)"Keep-alive")
 #define INDEX_FILE ((char*)"Index.html")
+
+#define NO_METHOD 0
+#define GET_METHOD 1
+#define HEAD_METHOD 2
+#define POST_METHOD 3
 
 int handle_http(peer_t *peer);
 

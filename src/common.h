@@ -61,6 +61,6 @@
 #define SEND_BODY_STATE   5
 #define FINISHED_STATE 6
 
-#define DEFAULT_WWW_DIR "/Users/lincongli/Desktop/CSE124/src/"
+#define DEFAULT_WWW_DIR "/Users/lincongli/Desktop/CSE124/src/www/"
 
 #endif //COMMON_H

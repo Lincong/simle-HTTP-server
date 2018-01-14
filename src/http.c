@@ -22,8 +22,10 @@ int generate_nonbody_response(http_task_t* http_task, int response_code);
 int generate_response_msg(http_task_t* http_task, char *msg);
 
 int send_nonbody_reponse(peer_t *peer);
+void get_mime_type(char *mime, char *type);
+char* get_header_value(Request *request, char * hname);
 
-int handle_GET(http_task_t* http_task, Request* request);
+int generate_GET_header(http_task_t* http_task, Request* request, bool last_req);
 /*
   _   _ _____ _____ ____    ____                            _     _                     _ _
  | | | |_   _|_   _|  _ \  |  _ \ ___  __ _ _   _  ___  ___| |_  | |__   __ _ _ __   __| | | ___  ___
@@ -68,6 +70,9 @@ int handle_http(peer_t *peer)
 
     // RECV_HEADER_STATE -> RECV_BODY_STATE -> GENERATE_HEADER_STATE ->
     // SEND_HEADER_STATE -> SEND_BODY_STATE -> FINISHED_STATE
+
+    bool last_request = false;
+    int method_type = NO_METHOD;
     while(curr_task->state != FINISHED_STATE){
         if(curr_task->state == RECV_HEADER_STATE){
             // read bytes from receiving buffer into parser buffer
@@ -89,40 +94,50 @@ int handle_http(peer_t *peer)
             Request *request = parse((char*)curr_task->parse_buf, (int)curr_task->parse_buf_idx);
             if(request == NULL) {
                 HTTP_LOG("%s", "parse() returns NULL")
-                exit(0);
+                exit(0); // for now just crash the server
                 return CLOSE_CONN_IMMEDIATELY; // invalid header request
             }
             if(HTTP_LOG_ON)
                 print_req(request);
 
+            // check if the current request is the last one
+            if (!strcmp(get_header_value(request, "Connection"), "Close")) {
+                HTTP_LOG("%s", "Last request connections");
+                last_request = true;
+            }
+
             // handle request
             char * http_method = request->http_method;
             if (!strcmp(http_method, "HEAD")) {
                 response_code = NOT_IMPLEMENTED_NUM;
+                curr_task->state = GENERATE_HEADER_STATE;
 
             } else if (!strcmp(http_method, "GET")) {
                 // TODO:
-                response_code = handle_GET(curr_task, request);
+                response_code = generate_GET_header(curr_task, request, last_request);
+                if(response_code == OK_NUM){
+                    curr_task->state = SEND_HEADER_STATE;
+                    method_type = GET_METHOD;
+                }
 
             } else if (!strcmp(http_method, "POST")) {
                 response_code = NOT_IMPLEMENTED_NUM;
+                curr_task->state = GENERATE_HEADER_STATE;
 
             } else { // not implemented
                 response_code = NOT_IMPLEMENTED_NUM;
+                curr_task->state = GENERATE_HEADER_STATE;
             }
-
-            // 404
-            curr_task->state = GENERATE_HEADER_STATE;
 
             free(request->headers);
             free(request);
 
-        }else if(curr_task->state == RECV_BODY_STATE){
+        } else if(curr_task->state == RECV_BODY_STATE) {
             COMM_LOG("%s", "In RECV_BODY_STATE")
 
             curr_task->state = GENERATE_HEADER_STATE;
 
-        }else if(curr_task->state == GENERATE_HEADER_STATE){
+        } else if(curr_task->state == GENERATE_HEADER_STATE) {
             COMM_LOG("%s", "In GENERATE_HEADER_STATE")
             // after generate_response_header, either stays in the current state or go to send header state
             curr_task->state = generate_nonbody_response(curr_task, response_code);
@@ -141,21 +156,41 @@ int handle_http(peer_t *peer)
                response_code == INTERNAL_SERVER_ERROR_NUM ||
                response_code == NOT_IMPLEMENTED_NUM ||
                response_code == HTTP_VERSION_NOT_SUPPORTED_NUM) {
-                curr_task->state = FINISHED_STATE;
-            }
 
+                curr_task->state = FINISHED_STATE;
+
+            } else { // take care of normal states
+
+                if(method_type == GET_METHOD) {
+                    curr_task->state = FINISHED_STATE;// SEND_BODY_STATE;
+
+                }else if(method_type == HEAD_METHOD) {
+                    curr_task->state = FINISHED_STATE;
+
+                } else if (method_type == POST_METHOD) {
+                    // TODO
+                    curr_task->state = FINISHED_STATE;
+
+                } else {
+                    HTTP_LOG("%s", "Shouldn't get here");
+                    assert(false);
+                }
+            }
 
             // curr_task->state = SEND_BODY_STATE;
 
-        }else if(curr_task->state == SEND_BODY_STATE){
+        } else if(curr_task->state == SEND_BODY_STATE) {
             COMM_LOG("%s", "In SEND_BODY_STATE")
+
+            assert(method_type == GET_METHOD); // for now only GET gets here
 
 
 
             curr_task->state = FINISHED_STATE;
-        }else{
+        } else {
             fprintf(stderr, "Shouldn't get to this unknown state");
             exit(EXIT_FAILURE);
+
         }
     }
 
@@ -365,8 +400,41 @@ int send_nonbody_reponse(peer_t *peer)
     return EXIT_SUCCESS;
 }
 
-int handle_GET(http_task_t* http_task, Request* request)
+// Get accordingly MIME type given file extension name
+void get_mime_type(char *mime, char *type)
 {
+    if (!strcmp(mime, "html")) {
+        strcpy(type, "text/html");
+    } else if (!strcmp(mime, "css")) {
+        strcpy(type, "text/css");
+    } else if (!strcmp(mime, "png")) {
+        strcpy(type, "image/png");
+    } else if (!strcmp(mime, "jpeg")) {
+        strcpy(type, "image/jpeg");
+    } else if (!strcmp(mime, "gif")) {
+        strcpy(type, "image/gif");
+    } else {
+        strcpy(type, "application/octet-stream");
+    }
+}
+
+
+// Get value given header name.
+// If header name not found, hvalue param will not be set.
+char* get_header_value(Request *request, char * hname) {
+    int i;
+
+    for (i = 0; i < request->header_count; i++) {
+        if (!strcmp(request->headers[i].header_name, hname)) {
+            return request->headers[i].header_value;
+        }
+    }
+    return "";
+}
+
+int generate_GET_header(http_task_t* http_task, Request* request, bool last_req)
+{
+    HTTP_LOG("%s", "In handle_GET");
     char fullpath[4096];
     char extension[64];
     char mime_type[64];
@@ -378,8 +446,57 @@ int handle_GET(http_task_t* http_task, Request* request)
     strcpy(fullpath, WWW_DIR);
     strcat(fullpath, request->http_uri);
 
-    if (is_dir(fullpath)) strcat(fullpath, INDEX_FILE);
+    if (requested_path_is_dir(fullpath)) // end with "/"
+        strcat(fullpath, INDEX_FILE);
+
+    if (access(fullpath, F_OK) < 0) {
+        HTTP_LOG("Path %s can not be accessed", fullpath)
+        return NOT_FOUND_NUM;
+    }
+
+    // first generate header information and write it to the response buffer
+    // get file meta data
+    // Get content type
+    get_extension(fullpath, extension);
+    str_tolower(extension);
+    get_mime_type(extension, mime_type);
+
+    /* Get content length */
+    content_length = get_file_len(fullpath);
+    sprintf(content_len_str, "%zu", content_length);
+
+    /* Get current time */
+    get_curr_time(curr_time, 256);
+
+    /* Get last modified time */
+    get_flmodified(fullpath, last_modified, 256);
+
+    generate_response_status_line(http_task, CODE_200, OK);
+    generate_response_header(http_task, "Server", SERVER_NAME);
+    generate_response_header(http_task, "Date", curr_time);
+    generate_response_header(http_task, "Content-Length", content_len_str);
+    generate_response_header(http_task, "Content-Type", mime_type);
+    generate_response_header(http_task, "Last-modified", last_modified);
+
+    if(last_req)
+        generate_response_header(http_task, CONNECTION, CLOSE);
+    else
+        generate_response_header(http_task, CONNECTION, KEEP_ALIVE);
+
+    generate_response_msg(http_task, CLRF);
+
+    // open the target file to read and store its fd to the current http_task
+    FILE* fd = fopen(fullpath, "r");
+    if (fd == NULL) {
+        HTTP_LOG("Error when opening file %s for reading", fullpath);
+        assert(false); // just kill the server for now
+        return INTERNAL_SERVER_ERROR_NUM;
+    }
+    http_task->fp = fd;
+    // move on to send file content
+    HTTP_LOG("%s", "End of generate_GET_header");
+    return OK_NUM;
     // TODO
-    printf("Not implemented!\n");
-    return NOT_IMPLEMENTED_NUM;
+//    printf("Not implemented!\n");
+//    return NOT_IMPLEMENTED_NUM;
 }
