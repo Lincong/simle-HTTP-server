@@ -10,15 +10,35 @@
 
 #define CL '\r'
 #define RF '\n'
-#define CLRF "\r\n"
-#define SP " "
-#define HTTP_VERSION  "HTTP/1.1"
-#define COLON ":"
-#define DEFAULT_INDEX_FILE "index.html"
+#define CLRF ((char*)"\r\n")
+#define SP ((char*)" ")
+#define HTTP_VERSION ((char*)"HTTP/1.1")
+#define COLON ((char*)":")
+#define DEFAULT_INDEX_FILE ((char*)"index.html")
 
 #define HEADER_TERM_STATUS 4
 #define PARSER_BUF_OVERFLOW 2
 #define EMPTY_RECV_BUF 3
+
+// HTTP responses codes
+
+#define CODE_404 ((char*)"404")
+#define CODE_400 ((char*)"400")
+#define CODE_411 ((char*)"411")
+#define CODE_500 ((char*)"500")
+#define CODE_501 ((char*)"501")
+#define CODE_505 ((char*)"505")
+
+// HTTP response reasons
+#define NOT_FOUND ((char*)"Not Found")
+#define BAD_REQUEST ((char*)"Bad Request")
+#define LENGTH_REQUIRE ((char*)"Length Require")
+#define INTERNAL_SERVER_ERROR ((char*)"Internal Server Error")
+#define NOT_IMPLEMENTED ((char*)"Not Implemented")
+#define HTTP_VERSION_NOT_SUPPORTED ((char*)"HTTP Version not supported")
+
+#define CONNECTION ((char*)"Connection")
+#define CLOSE ((char*)"Close")
 
 int handle_http(peer_t *peer);
 

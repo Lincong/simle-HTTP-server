@@ -38,7 +38,7 @@ int echo_received_message(peer_t *client)
     HANDLER_LOG("%s", "Received message from client.")
     if(HANDLER_LOG_ON) print_message(msg, echo_bytes_num);
 
-    if(write_to_sending_buffer(client, msg, echo_bytes_num) == EXIT_FAILURE){
+    if(write_to_sending_buffer(client, msg, echo_bytes_num) < 0){
         return EXIT_FAILURE;
     }
     // send bytes to client

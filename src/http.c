@@ -10,7 +10,17 @@
 int read_header_data(peer_t *peer);
 void print_parse_buf(http_task_t* curr_task);
 void print_req(Request* request);
+bool valid_response_code(int response_code);
 
+// there are 3 parts of body: status line, header, and body
+int generate_response_status_line(http_task_t* http_task, char *code, char*reason);
+int generate_response_header(http_task_t* http_task, char *hname, char *hvalue);
+int generate_nonbody_response(http_task_t* http_task, int response_code);
+int generate_response_msg(http_task_t* http_task, char *msg);
+
+int send_nonbody_reponse(peer_t *peer);
+
+void send_404(http_task_t* http_task);
 
 /*
   _   _ _____ _____ ____    ____                            _     _                     _ _
@@ -54,13 +64,14 @@ int handle_http(peer_t *peer)
         fprintf(stderr, "When handle_http() is called, http_task should have been allocated");
         exit(EXIT_FAILURE);
     }
+    int response_code = -1;
 
     // RECV_HEADER_STATE -> RECV_BODY_STATE -> GENERATE_HEADER_STATE ->
     // SEND_HEADER_STATE -> SEND_BODY_STATE -> FINISHED_STATE
     while(curr_task->state != FINISHED_STATE){
         if(curr_task->state == RECV_HEADER_STATE){
             // read bytes from receiving buffer into parser buffer
-            HTTP_LOG("%s", "Before read_header_data")
+            COMM_LOG("%s", "In RECV_HEADER_STATE")
             int ret = read_header_data(peer);
             if(ret == PARSER_BUF_OVERFLOW) {
                 return CLOSE_CONN_IMMEDIATELY; // invalid header request
@@ -84,25 +95,47 @@ int handle_http(peer_t *peer)
             if(HTTP_LOG_ON)
                 print_req(request);
 
+            // handle request
+            // 404
+            response_code = 404;
+
+            curr_task->state = GENERATE_HEADER_STATE;
+
             free(request->headers);
             free(request);
-            return CLOSE_CONN_IMMEDIATELY; // test
-
-            curr_task->state = RECV_BODY_STATE;
 
         }else if(curr_task->state == RECV_BODY_STATE){
+            COMM_LOG("%s", "In RECV_BODY_STATE")
 
             curr_task->state = GENERATE_HEADER_STATE;
 
         }else if(curr_task->state == GENERATE_HEADER_STATE){
-
-            curr_task->state = SEND_HEADER_STATE;
+            COMM_LOG("%s", "In GENERATE_HEADER_STATE")
+            // after generate_response_header, either stays in the current state or go to send header state
+            curr_task->state = generate_nonbody_response(curr_task, response_code);
 
         }else if(curr_task->state == SEND_HEADER_STATE){
+            COMM_LOG("%s", "In SEND_HEADER_STATE")
+            // copy data from the response buffer to sending buffer of the current connection
+            int ret = send_nonbody_reponse(peer);
+            if(ret == SEND_BODY_STATE) // stay in the current state
+                return KEEP_CONN;
 
-            curr_task->state = SEND_BODY_STATE;
+            // go to next state basing on the response code
+            switch (response_code){
+                case 404:
+                    curr_task->state = FINISHED_STATE;
+                    break;
+                default:
+                    break;
+            }
+
+            // curr_task->state = SEND_BODY_STATE;
 
         }else if(curr_task->state == SEND_BODY_STATE){
+            COMM_LOG("%s", "In SEND_BODY_STATE")
+
+
 
             curr_task->state = FINISHED_STATE;
         }else{
@@ -208,4 +241,91 @@ void print_req(Request* request)
         printf("Request Header\n");
         printf("Header name: %s\nHeader Value: %s\n\n",request->headers[index].header_name,request->headers[index].header_value);
     }
+}
+
+bool valid_response_code(int response_code)
+{
+    if(HTTP_LOG_ON)
+        printf("Response code is %d\n", response_code);
+    return (response_code == 404 ||
+            response_code == 400 ||
+            response_code == 411 ||
+            response_code == 500 ||
+            response_code == 501 ||
+            response_code == 505);
+}
+
+// generate response headers basing on the response code
+int generate_nonbody_response(http_task_t* http_task, int response_code)
+{
+    assert(valid_response_code(response_code));
+    switch (response_code){
+        case 404:
+            generate_response_status_line(http_task, CODE_400, BAD_REQUEST);
+            generate_response_msg(http_task, CLRF);
+            // generate_response_header(http_task, CONNECTION, CLOSE);
+            return SEND_HEADER_STATE;
+        default:
+            break;
+    }
+    return http_task->state;
+}
+
+// assume this function will never fail for now
+int generate_response_status_line(http_task_t* http_task, char *code, char*reason)
+{
+    int ret;
+    ret = buf_write(&http_task->response_buf, HTTP_VERSION, strlen(HTTP_VERSION));
+    ret = buf_write(&http_task->response_buf, SP, strlen(SP));
+    ret = buf_write(&http_task->response_buf, code, strlen(code));
+    ret = buf_write(&http_task->response_buf, SP, strlen(SP));
+    ret = buf_write(&http_task->response_buf, reason, strlen(reason));
+    ret = buf_write(&http_task->response_buf, CLRF, strlen(CLRF));
+    assert(ret >= 0);
+    return EXIT_SUCCESS;
+}
+
+// assume this function will never fail for now
+int generate_response_header(http_task_t* http_task, char *hname, char *hvalue)
+{
+    int ret;
+    ret = buf_write(&http_task->response_buf, hname, strlen(hname));
+    ret = buf_write(&http_task->response_buf, COLON, strlen(COLON));
+    ret = buf_write(&http_task->response_buf, SP, strlen(SP));
+    ret = buf_write(&http_task->response_buf, hvalue, strlen(hvalue));
+    // two CLRF indicates the end of the response header section
+    ret = buf_write(&http_task->response_buf, CLRF, strlen(CLRF));
+    assert(ret >= 0);
+    return EXIT_SUCCESS;
+}
+
+int generate_response_msg(http_task_t* http_task, char *msg)
+{
+    assert(buf_write(&http_task->response_buf, msg, strlen(msg)) > 0);
+    return EXIT_SUCCESS;
+}
+
+int send_nonbody_reponse(peer_t *peer)
+{
+    cbuf_t* send_buf = &peer->sending_buffer;
+    cbuf_t* response_buf = &peer->http_task->response_buf;
+    uint8_t data;
+    while(!buf_empty(response_buf)){
+        // read one byte from the response buffer
+        buf_get(response_buf, &data);
+
+        if(!buf_full(send_buf)){
+            buf_put(send_buf, data);
+        } else { // sending buffer is full so stay in the current state
+            return SEND_HEADER_STATE;
+        }
+    }
+    return EXIT_SUCCESS;
+}
+// write 404 header to the response buffer of that client
+void send_404(http_task_t* http_task)
+{
+//    send_response(client_buffer, (char*)"400", (char*)"Bad Request");
+//    send_header(client_buffer, "Connection", "Close");
+//    send_msg(client_buffer, clrf);
 }

@@ -111,12 +111,13 @@ int buf_write(cbuf_t * cbuf, uint8_t * data, size_t num_bytes)
     if(num_bytes > buf_available(cbuf)) {
         num_bytes = buf_available(cbuf);
         printf("buffer overflow!\n");
+        return -1;
     }
 
     int i;
     for(i = 0; i < num_bytes; i++){
         if(buf_put(cbuf, data[i]) != EXIT_SUCCESS) {
-            return EXIT_FAILURE;
+            return -1;
         }
     }
     return (int)num_bytes;
@@ -146,6 +147,7 @@ http_task_t* create_http_task()
     new_task->state = RECV_HEADER_STATE; // initial state
     new_task->parse_buf_idx = 0;
     new_task->header_term_token_status = 0;
+    buf_reset(&new_task->response_buf);
     return new_task;
 }
 
