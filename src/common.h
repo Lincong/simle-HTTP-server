@@ -28,7 +28,7 @@
 /* Maximum bytes that can be send() or recv() via net by one call.
  * It's a good idea to test sending one byte by one.
  */
-#define ECHO_PORT 9999
+// #define ECHO_PORT 9999
 #define BUF_SIZE 4096
 #define BACKLOG  10
 #define SOCK_REUSE 1
@@ -61,6 +61,6 @@
 #define SEND_BODY_STATE   5
 #define FINISHED_STATE 6
 
-#define WWW_DIR "/Users/lincongli/Desktop/CSE124/src/"
+#define DEFAULT_WWW_DIR "/Users/lincongli/Desktop/CSE124/src/"
 
 #endif //COMMON_H

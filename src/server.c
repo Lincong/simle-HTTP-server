@@ -8,6 +8,11 @@
 #include "message.h"
 #include "http.h"
 #include "file_handlers.h"
+#define USAGE "\nLiso Server Usage: ./lisod <HTTP port> <log file> <www folder>\n"
+
+int http_port;
+int https_port;
+char *WWW_DIR;
 
 int http_sock_fd; // a file descriptor for our "listening" socket.
 peer_t connection_list[MAX_CLIENTS];
@@ -19,6 +24,24 @@ int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *
 
 int main(int argc, char* argv[])
 {
+
+    /* Check usage */
+    if (argc < 8) {
+        fprintf(stdout, USAGE);
+        http_port = 9999;
+        WWW_DIR = DEFAULT_WWW_DIR;
+
+    } else {
+        /* Read parameters from command line arguments */
+        http_port = atoi(argv[1]);   /* port param */
+        https_port = atoi(argv[2]); /* https port param */
+        // LOGFILE = argv[3];          /* log file param */
+        // LOCKFILE = argv[4];         /* lock file param */
+        WWW_DIR = argv[5];       /* www folder param */
+        // CGI_scripts = argv[6];      /* cgi script param */
+        // PRIVATE_KEY_FILE = argv[7]; /* private key file param */
+        // CERT_FILE = argv[8];        /* certificate file param */
+    }
     // check if resources folder exists
     if(!is_dir(WWW_DIR)){
         fprintf(stderr, "WWW path is wrong\n");

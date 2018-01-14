@@ -8,6 +8,8 @@
 #include "parser/parse.h"
 #include "file_handlers.h"
 
+extern char *WWW_DIR;
+
 int read_header_data(peer_t *peer);
 void print_parse_buf(http_task_t* curr_task);
 void print_req(Request* request);
@@ -30,8 +32,6 @@ int handle_GET(http_task_t* http_task, Request* request);
  |_| |_| |_|   |_| |_|     |_| \_\___|\__, |\__,_|\___||___/\__| |_| |_|\__,_|_| |_|\__,_|_|\___||___/
                                          |_|
 */
-
-char *WWW_FOLDER;
 
 ///* Defineds tokens */
 //char *clrf = "\r\n";
@@ -112,8 +112,6 @@ int handle_http(peer_t *peer)
             }
 
             // 404
-            response_code = BAD_REQUEST_NUM;
-
             curr_task->state = GENERATE_HEADER_STATE;
 
             free(request->headers);
@@ -377,11 +375,11 @@ int handle_GET(http_task_t* http_task, Request* request)
     size_t content_length;
     char content_len_str[16];
 
-    strcpy(fullpath, WWW_FOLDER);
+    strcpy(fullpath, WWW_DIR);
     strcat(fullpath, request->http_uri);
 
     if (is_dir(fullpath)) strcat(fullpath, INDEX_FILE);
     // TODO
-
-    return EXIT_SUCCESS;
+    printf("Not implemented!\n");
+    return NOT_IMPLEMENTED_NUM;
 }

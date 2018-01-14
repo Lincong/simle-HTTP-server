@@ -4,6 +4,8 @@
 
 #include "utility.h"
 
+extern int http_port;
+
 /* Start listening socket listen_sock. */
 int start_listen_socket(int backlog_num, int reuse, int* sock_fd)
 {
@@ -20,7 +22,7 @@ int start_listen_socket(int backlog_num, int reuse, int* sock_fd)
     struct sockaddr_in sock_addr;
     memset(&sock_addr, 0, sizeof(sock_addr));
     sock_addr.sin_family = AF_INET;
-    sock_addr.sin_port = htons(ECHO_PORT); // use default echo server port
+    sock_addr.sin_port = htons(http_port); // use default echo server port
     sock_addr.sin_addr.s_addr = INADDR_ANY;
 
     // bind socket with the address
@@ -39,7 +41,7 @@ int start_listen_socket(int backlog_num, int reuse, int* sock_fd)
         fprintf(stderr, "Error listening on socket.\n");
         return EXIT_FAILURE;
     }
-    printf("Accepting connections on port %d.\n", (int)ECHO_PORT);
+    printf("Accepting connections on port %d.\n", http_port);
     return 0;
 }
 
