@@ -211,16 +211,17 @@ int setup_signals()
 void init_server(int argc, char* argv[])
 {
     /* Check usage */
+    char* log_file;
     if (argc < 8) {
         fprintf(stdout, USAGE);
         http_port = 9999;
         WWW_DIR = DEFAULT_WWW_DIR;
-
+        log_file = LOG_FILE_NAME;
     } else {
         /* Read parameters from command line arguments */
         http_port = atoi(argv[1]);   /* port param */
         https_port = atoi(argv[2]); /* https port param */
-        // LOGFILE = argv[3];          /* log file param */
+        log_file = argv[3];          /* log file param */
         // LOCKFILE = argv[4];         /* lock file param */
         WWW_DIR = argv[5];       /* www folder param */
         // CGI_scripts = argv[6];      /* cgi script param */
@@ -229,13 +230,13 @@ void init_server(int argc, char* argv[])
     }
     // check if resources folder exists
     if(!is_dir(WWW_DIR)){
-        fprintf(stderr, "WWW path is wrong\n");
+        HTTP_LOG("%s", "WWW path is wrong")
         exit(EXIT_FAILURE);
     }
 
-    log_fd = fopen(LOG_FILE_NAME, "a+");
+    log_fd = fopen(log_file, "a+");
     if(log_fd == NULL){
-        fprintf(stderr, "Open log file failed");
+        HTTP_LOG("%s", "Open log file failed")
         exit(EXIT_FAILURE);
     }
 }

@@ -498,12 +498,18 @@ int generate_GET_header(http_task_t* http_task, Request* request, bool last_req)
 
     strcpy(fullpath, WWW_DIR);
 
+    HTTP_LOG("%s", "Before remove_redundancy_from_uri")
     remove_redundancy_from_uri(request->http_uri);
+    HTTP_LOG("%s", "After remove_redundancy_from_uri")
     strcat(fullpath, request->http_uri);
-
-// for testing
-    if (requested_path_is_dir(fullpath)) // end with "/"
+    HTTP_LOG("%s", "After strcat()")
+    // for testing
+    if (requested_path_is_dir(fullpath)) { // end with "/"
         strcat(fullpath, INDEX_FILE);
+        HTTP_LOG("%s", "1")
+    }
+    HTTP_LOG("%s", "2")
+    HTTP_LOG("full requested path is: %s", fullpath)
 
     if (access(fullpath, F_OK) < 0) {
         HTTP_LOG("Path %s can not be accessed", fullpath)
@@ -513,6 +519,7 @@ int generate_GET_header(http_task_t* http_task, Request* request, bool last_req)
     // first generate header information and write it to the response buffer
     // get file meta data
     // Get content type
+    HTTP_LOG("%s", "Before getting requested file information")
     get_extension(fullpath, extension);
     str_tolower(extension);
     get_mime_type(extension, mime_type);
@@ -526,13 +533,16 @@ int generate_GET_header(http_task_t* http_task, Request* request, bool last_req)
 
     /* Get last modified time */
     get_flmodified(fullpath, last_modified, 256);
+    HTTP_LOG("%s", "After getting requested file information")
 
+    HTTP_LOG("%s", "Before generating headers")
     generate_response_status_line(http_task, CODE_200, OK);
     generate_response_header(http_task, "Server", SERVER_NAME);
     generate_response_header(http_task, "Date", curr_time);
     generate_response_header(http_task, "Content-Length", content_len_str);
     generate_response_header(http_task, "Content-Type", mime_type);
     generate_response_header(http_task, "Last-modified", last_modified);
+    HTTP_LOG("%s", "After generating headers")
 
     if(last_req)
         generate_response_header(http_task, CONNECTION, CLOSE);
