@@ -152,6 +152,7 @@ int handle_http(peer_t *peer)
                 buf_get(receiving_buffer, &data);
                 curr_task->body_bytes_num--;
             }
+            HTTP_LOG("%s", "Finished receiving body")
             curr_task->response_code = OK_NUM;
             curr_task->state = GENERATE_HEADER_STATE;
 
@@ -318,49 +319,63 @@ bool valid_response_code(int response_code)
 {
     if(HTTP_LOG_ON)
         printf("Response code is %d\n", response_code);
-    return (response_code == 404 ||
-            response_code == 400 ||
-            response_code == 411 ||
-            response_code == 500 ||
-            response_code == 501 ||
-            response_code == 505);
+    return (response_code == OK_NUM ||
+            response_code == NOT_FOUND_NUM ||
+            response_code == BAD_REQUEST_NUM ||
+            response_code == LENGTH_REQUIRE_NUM ||
+            response_code == INTERNAL_SERVER_ERROR_NUM ||
+            response_code == NOT_IMPLEMENTED_NUM ||
+            response_code == HTTP_VERSION_NOT_SUPPORTED_NUM);
 }
 
 // generate response headers basing on the response code
 int generate_nonbody_response(http_task_t* http_task, int response_code)
 {
+    HTTP_LOG("%s", "In generate_nonbody_response()")
     assert(valid_response_code(response_code));
     switch (response_code){
+        case OK_NUM:
+            HTTP_LOG("%s", "Generating 200")
+            generate_response_status_line(http_task, CODE_200, OK);
+            generate_response_header(http_task, "Server", SERVER_NAME);
+            return SEND_HEADER_STATE;
+
         case BAD_REQUEST_NUM:
+            HTTP_LOG("%s", "Generating 400")
             generate_response_status_line(http_task, CODE_400, BAD_REQUEST);
             generate_response_header(http_task, CONNECTION, CLOSE);
             generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
 
         case NOT_FOUND_NUM:
+            HTTP_LOG("%s", "Generating 404")
             generate_response_status_line(http_task, CODE_404, NOT_FOUND);
             generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
 
         case LENGTH_REQUIRE_NUM:
+            HTTP_LOG("%s", "Generating 411")
             generate_response_status_line(http_task, CODE_411, LENGTH_REQUIRE);
             generate_response_header(http_task, CONNECTION, CLOSE);
             generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
 
         case INTERNAL_SERVER_ERROR_NUM:
+            HTTP_LOG("%s", "Generating 500")
             generate_response_status_line(http_task, CODE_500, INTERNAL_SERVER_ERROR);
             generate_response_header(http_task, CONNECTION, CLOSE);
             generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
 
         case NOT_IMPLEMENTED_NUM:
+            HTTP_LOG("%s", "Generating 501")
             generate_response_status_line(http_task, CODE_501, NOT_IMPLEMENTED);
             generate_response_header(http_task, CONNECTION, CLOSE);
             generate_response_msg(http_task, CLRF);
             return SEND_HEADER_STATE;
 
         case HTTP_VERSION_NOT_SUPPORTED_NUM:
+            HTTP_LOG("%s", "Generating 505")
             generate_response_status_line(http_task, CODE_505, HTTP_VERSION_NOT_SUPPORTED);
             generate_response_header(http_task, CONNECTION, CLOSE);
             generate_response_msg(http_task, CLRF);
@@ -369,6 +384,7 @@ int generate_nonbody_response(http_task_t* http_task, int response_code)
         default:
             break;
     }
+    HTTP_LOG("%s", "Not generating anything")
     return http_task->state;
 }
 

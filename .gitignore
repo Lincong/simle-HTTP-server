@@ -18,4 +18,5 @@ http_parser
 
 www
 objs
+test_cp2
 
