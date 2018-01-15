@@ -58,7 +58,6 @@ int buf_put(cbuf_t * cbuf, uint8_t data)
         cbuf->num_byte++;
         ret = EXIT_SUCCESS;
     }
-
     return ret;
 }
 
@@ -144,10 +143,11 @@ void print_message(uint8_t* msg, size_t len)
 http_task_t* create_http_task()
 {
     http_task_t* new_task = (http_task_t*) malloc(1*sizeof(http_task_t));
-    new_task->state = RECV_HEADER_STATE; // initial state
-    new_task->parse_buf_idx = 0;
-    new_task->header_term_token_status = 0;
-    buf_reset(&new_task->response_buf);
+    if(new_task == NULL){
+        fprintf(stderr, "malloc() fails! This is bad...");
+        assert(false);
+    }
+    reset_http_task(new_task);
     return new_task;
 }
 
@@ -157,7 +157,17 @@ void destroy_http_task(http_task_t* http_task)
         free(http_task);
 }
 
-
+void reset_http_task(http_task_t* http_task)
+{
+    if(http_task == NULL) return;
+    http_task->state = RECV_HEADER_STATE; // initial state
+    http_task->parse_buf_idx = 0;
+    http_task->header_term_token_status = 0;
+    http_task->method_type = 0; // NO_METHOD
+    http_task->last_request = false;
+    http_task->response_code = -1; // no response code
+    buf_reset(&http_task->response_buf);
+}
 /*
  | '_ \ / _ \/ _ \ '__|
  | |_) |  __/  __/ |

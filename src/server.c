@@ -25,9 +25,7 @@ void init_server(int argc, char* argv[]); // set http port and other parameters
 
 int main(int argc, char* argv[])
 {
-
     init_server(argc, argv);
-
     SERVER_LOG("%s", "Setting up signal handlers...")
     if (setup_signals() != 0)
         exit(EXIT_FAILURE);

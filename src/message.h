@@ -45,11 +45,15 @@ typedef struct {
     size_t parse_buf_idx;
     int header_term_token_status; // when it is 4, it means "\r\n\r\n" is matched, 3 means "\r\n\r" is matched and etc
     cbuf_t response_buf; // might need to make it be dynamic buffer
+    int method_type;
+    bool last_request;
+    int response_code;
     FILE * fp;           // use fgetc() to get one byte at a time
 } http_task_t;
 
 http_task_t* create_http_task();
 void destroy_http_task(http_task_t* http_task);
+void reset_http_task(http_task_t* http_task);
 
 // peer -----------------------------------------------------------------------
 
