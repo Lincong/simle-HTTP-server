@@ -127,36 +127,6 @@ int handle_http(peer_t *peer)
             free(request->headers);
             free(request);
 
-//            if (!strcmp(http_method, "HEAD")) {
-//                curr_task->response_code = generate_GET_header(curr_task, request, curr_task->last_request);
-//                if(curr_task->response_code == OK_NUM){
-//                    curr_task->state = SEND_HEADER_STATE;
-//                    curr_task->method_type = HEAD_METHOD;
-//                }
-//
-//            } else if (!strcmp(http_method, "GET")) {
-//                curr_task->response_code = generate_GET_header(curr_task, request, curr_task->last_request);
-//                if(curr_task->response_code == OK_NUM){
-//                    curr_task->state = SEND_HEADER_STATE;
-//                    curr_task->method_type = GET_METHOD;
-//
-//                } else {
-//                    curr_task->state = GENERATE_HEADER_STATE;
-//                }
-//
-//            } else if (!strcmp(http_method, "POST")) {
-//                // TODO: handle POST header
-//
-//                curr_task->state = RECV_BODY_STATE;
-//
-//            } else { // not implemented
-//                curr_task->response_code = NOT_IMPLEMENTED_NUM;
-//                curr_task->state = GENERATE_HEADER_STATE;
-//            }
-//
-//            free(request->headers);
-//            free(request);
-
         } else if(curr_task->state == RECV_BODY_STATE) {
             COMM_LOG("%s", "In RECV_BODY_STATE")
             assert(curr_task->method_type == POST_METHOD); // only POST method has a body
