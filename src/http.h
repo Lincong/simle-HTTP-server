@@ -61,6 +61,19 @@
 #define STREAM_FILE_DONE  1
 #define STREAM_FILE_ERROR 2
 
+// mime type
+
+#define TEXT_HTML "text/html"
+#define TEXT_CSS "text/css"
+#define CSS "css"
+#define PNG "png"
+#define IMAGE_PNG "image/png"
+#define JPEG "jpeg"
+#define IMAGE_JPEG "image/jpeg"
+#define GIF "gif"
+#define IMAGE_GIF "image/gif"
+#define APPLICATION_OCTET_STREAM "application/octet-stream"
+
 int handle_http(peer_t *peer);
 
 #endif //HTTP_H

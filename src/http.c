@@ -412,17 +412,17 @@ int send_nonbody_reponse(peer_t *peer)
 void get_mime_type(char *mime, char *type)
 {
     if (!strcmp(mime, "html")) {
-        strcpy(type, "text/html");
-    } else if (!strcmp(mime, "css")) {
-        strcpy(type, "text/css");
-    } else if (!strcmp(mime, "png")) {
-        strcpy(type, "image/png");
-    } else if (!strcmp(mime, "jpeg")) {
-        strcpy(type, "image/jpeg");
-    } else if (!strcmp(mime, "gif")) {
-        strcpy(type, "image/gif");
+        strcpy(type, TEXT_HTML);
+    } else if (!strcmp(mime, CSS)) {
+        strcpy(type, TEXT_CSS);
+    } else if (!strcmp(mime, PNG)) {
+        strcpy(type, IMAGE_PNG);
+    } else if (!strcmp(mime, JPEG)) {
+        strcpy(type, IMAGE_JPEG);
+    } else if (!strcmp(mime, GIF)) {
+        strcpy(type, IMAGE_GIF);
     } else {
-        strcpy(type, "application/octet-stream");
+        strcpy(type, APPLICATION_OCTET_STREAM);
     }
 }
 
