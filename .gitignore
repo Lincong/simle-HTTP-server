@@ -9,6 +9,12 @@ starter_code_2
 *.yy.h
 parser_exe
 server
+*.log
+tmp
+
+*.py
+*.pyc
+http_parser
 
 www
 objs
