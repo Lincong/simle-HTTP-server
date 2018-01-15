@@ -24,6 +24,7 @@
 #define MAX_CLIENTS 100
 #define NO_SOCKET -1
 #define SERVER_NAME "Liso/1.0"
+#define LOG_FILE_NAME "log.txt"
 
 /* Maximum bytes that can be send() or recv() via net by one call.
  * It's a good idea to test sending one byte by one.

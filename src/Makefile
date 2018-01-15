@@ -89,3 +89,4 @@ clean:
 	rm $(OBJ_DIR)/*.o
 	rm $(PARSE_DIR)/y.tab.c $(PARSE_DIR)/lex.yy.c
 	rm lisod
+	rm log.txt

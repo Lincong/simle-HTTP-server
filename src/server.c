@@ -232,4 +232,10 @@ void init_server(int argc, char* argv[])
         fprintf(stderr, "WWW path is wrong\n");
         exit(EXIT_FAILURE);
     }
+
+    log_fd = fopen(LOG_FILE_NAME, "a+");
+    if(log_fd == NULL){
+        fprintf(stderr, "Open log file failed");
+        exit(EXIT_FAILURE);
+    }
 }
