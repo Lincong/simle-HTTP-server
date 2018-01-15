@@ -23,7 +23,7 @@
 #define IS_HTTP_SERVER true // if not a HTTP server, act like an echo server
 #define MAX_CLIENTS 100
 #define NO_SOCKET -1
-#define SERVER_NAME "Liso"
+#define SERVER_NAME "Liso/1.0"
 
 /* Maximum bytes that can be send() or recv() via net by one call.
  * It's a good idea to test sending one byte by one.

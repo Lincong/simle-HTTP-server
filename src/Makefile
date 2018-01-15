@@ -37,7 +37,7 @@ OBJ+=$(OBJ_DIR)/parse.o
 
 default: all
 
-all: pre server
+all: pre lisod
 
 pre:
 	mkdir -p $(OBJ_DIR)
@@ -82,10 +82,10 @@ $(OBJ_DIR)/y.tab.o: $(PARSE_DIR)/y.tab.c $(PARSER_DEPS)
 
 # rule for building the final executable
 
-server: $(OBJ)
+lisod: $(OBJ)
 	$(CC) $(CFLAGS) $^ -o $@
 
 clean:
 	rm $(OBJ_DIR)/*.o
 	rm $(PARSE_DIR)/y.tab.c $(PARSE_DIR)/lex.yy.c
-	rm server
+	rm lisod
