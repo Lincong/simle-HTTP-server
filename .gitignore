@@ -1,5 +1,6 @@
 .idea
 *.o
+*.tar
 cmake-build-debug
 CMakeLists.*
 starter_code_2
@@ -19,4 +20,6 @@ http_parser
 www
 objs
 test_cp2
+requests
+
 
