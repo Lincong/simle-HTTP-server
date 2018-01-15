@@ -90,12 +90,15 @@ int handle_http(peer_t *peer)
             // handle request
             char * http_method = request->http_method;
             if (!strcmp(http_method, "HEAD")) {
+                HTTP_LOG("%s", "HEAD method!")
                 curr_task->method_type = HEAD_METHOD;
 
             } else if (!strcmp(http_method, "GET")) {
+                HTTP_LOG("%s", "GET method!")
                 curr_task->method_type = GET_METHOD;
 
             } else if (!strcmp(http_method, "POST")) {
+                HTTP_LOG("%s", "POST method!")
                 curr_task->method_type = POST_METHOD;
 
             } else {
@@ -107,7 +110,7 @@ int handle_http(peer_t *peer)
             }
 
 
-            if(curr_task->method_type == HEAD_METHOD || curr_task->method_type == POST_METHOD) {
+            if(curr_task->method_type == GET_METHOD || curr_task->method_type == HEAD_METHOD) {
                 curr_task->response_code = generate_GET_header(curr_task, request, curr_task->last_request);
                 if(curr_task->response_code == OK_NUM) {
                     curr_task->state = SEND_HEADER_STATE;
