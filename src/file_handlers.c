@@ -50,20 +50,11 @@ int create_folder(const char *path, mode_t mode) {
     return ret;
 }
 
-void get_extension(const char *path, char *result) {
-    int extension_max_len = 10;
-    size_t len = strlen(path);
-    int i;
-    for (i = len-1; i >= 0 && (len-i) < extension_max_len; i--) {
-        int curr_len = len-i;
-        if (path[i] == '.') {
-            strncpy(result, path +(len-curr_len)+1, curr_len-1);
-            return ;
-        }
-    }
-    strncpy(result, "none", 4);
+const char *get_filename_ext(const char *filename) {
+    const char *dot = strrchr(filename, '.');
+    if(!dot || dot == filename) return "";
+    return dot + 1;
 }
-
 
 /*
  * Convert all chars of a str to lower case in place.

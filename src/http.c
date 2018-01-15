@@ -431,6 +431,7 @@ int send_nonbody_reponse(peer_t *peer)
 // Get accordingly MIME type given file extension name
 void get_mime_type(char *mime, char *type)
 {
+    HTTP_LOG("In get_mime_type(), mime is %s", mime)
     if (!strcmp(mime, "html")) {
         strcpy(type, TEXT_HTML);
     } else if (!strcmp(mime, CSS)) {
@@ -489,7 +490,7 @@ int generate_GET_header(http_task_t* http_task, Request* request, bool last_req)
 {
     HTTP_LOG("%s", "In generate_GET_header()");
     char fullpath[4096];
-    char extension[64];
+    char* extension;
     char mime_type[64];
     char curr_time[256];
     char last_modified[256];
@@ -520,7 +521,9 @@ int generate_GET_header(http_task_t* http_task, Request* request, bool last_req)
     // get file meta data
     // Get content type
     HTTP_LOG("%s", "Before getting requested file information")
-    get_extension(fullpath, extension);
+    HTTP_LOG("fullpath is %s", fullpath)
+//    get_extension(fullpath, extension);
+    extension = get_filename_ext(fullpath);
     str_tolower(extension);
     get_mime_type(extension, mime_type);
 
