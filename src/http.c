@@ -30,7 +30,7 @@ int stream_file_content(peer_t* peer);
 void chopN(char *str, size_t n);
 bool starts_with(const char *pre, const char *str);
 void remove_redundancy_from_uri(char* uri);
-
+void free_request(Request* req);
 /*
   _   _ _____ _____ ____    ____                            _     _                     _ _
  | | | |_   _|_   _|  _ \  |  _ \ ___  __ _ _   _  ___  ___| |_  | |__   __ _ _ __   __| | | ___  ___
@@ -88,6 +88,7 @@ int handle_http(peer_t *peer)
 
 
             // handle request
+            // check what method does the request contains
             char * http_method = request->http_method;
             if (!strcmp(http_method, "HEAD")) {
                 HTTP_LOG("%s", "HEAD method!")
@@ -104,12 +105,11 @@ int handle_http(peer_t *peer)
             } else {
                 curr_task->response_code = NOT_IMPLEMENTED_NUM;
                 curr_task->state = GENERATE_HEADER_STATE;
-                free(request->headers);
-                free(request);
+                free_request(request);
                 continue;
             }
 
-
+            // do something depending on the method
             if(curr_task->method_type == GET_METHOD || curr_task->method_type == HEAD_METHOD) {
                 curr_task->response_code = generate_GET_header(curr_task, request, curr_task->last_request);
                 if(curr_task->response_code == OK_NUM) {
@@ -121,17 +121,37 @@ int handle_http(peer_t *peer)
                 }
 
             } else { // POST_METHOD
-                curr_task->state = RECV_BODY_STATE;
 
+                // check Content-Length
+                char *content_length_str;
+                content_length_str = get_header_value(request, "Content-Length");
+                if (strlen(content_length_str) == 0) {
+                    // go to generate corresponding error header
+                    curr_task->response_code = LENGTH_REQUIRE_NUM;
+                    curr_task->state = GENERATE_HEADER_STATE;
+
+                } else {
+                    int content_len = atoi(content_length_str);
+                    HTTP_LOG("POST content length: %d", content_len)
+                    assert(curr_task->body_bytes_num == 0);
+                    curr_task->state = RECV_BODY_STATE; // go to RECV_BODY_STATE
+                }
             }
-            free(request->headers);
-            free(request);
+            free_request(request);
 
         } else if(curr_task->state == RECV_BODY_STATE) {
             COMM_LOG("%s", "In RECV_BODY_STATE")
             assert(curr_task->method_type == POST_METHOD); // only POST method has a body
             // TODO: handle POST body
-
+            // just read out all bytes that belong to the message body from the receiving buffer
+            cbuf_t* receiving_buffer = &peer->receiving_buffer;
+            uint8_t data;
+            while(curr_task->body_bytes_num > 0) {
+                if(buf_empty(receiving_buffer)) // read from the receiving buffer later
+                    return KEEP_CONN;
+                buf_get(receiving_buffer, &data);
+                curr_task->body_bytes_num--;
+            }
             curr_task->response_code = OK_NUM;
             curr_task->state = GENERATE_HEADER_STATE;
 
@@ -558,4 +578,10 @@ int stream_file_content(peer_t* peer)
     }
     HTTP_LOG("%s", "Buffer is full")
     return STREAM_FILE_NOT_DONE;
+}
+
+void free_request(Request* req)
+{
+    free(req->headers);
+    free(req);
 }

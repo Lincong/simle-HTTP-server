@@ -166,6 +166,7 @@ void reset_http_task(http_task_t* http_task)
     http_task->method_type = 0; // NO_METHOD
     http_task->last_request = false;
     http_task->response_code = -1; // no response code
+    http_task->body_bytes_num = 0;
     buf_reset(&http_task->response_buf);
 }
 /*

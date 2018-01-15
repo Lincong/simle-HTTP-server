@@ -48,6 +48,7 @@ typedef struct {
     int method_type;
     bool last_request;
     int response_code;
+    size_t body_bytes_num;
     FILE * fp;           // use fgetc() to get one byte at a time
 } http_task_t;
 
