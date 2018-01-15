@@ -86,34 +86,73 @@ int handle_http(peer_t *peer)
                 curr_task->last_request = true;
             }
 
+
             // handle request
             char * http_method = request->http_method;
             if (!strcmp(http_method, "HEAD")) {
-                curr_task->response_code = generate_GET_header(curr_task, request, curr_task->last_request);
-                if(curr_task->response_code == OK_NUM){
-                    curr_task->state = SEND_HEADER_STATE;
-                    curr_task->method_type = HEAD_METHOD;
-                }
+                curr_task->method_type = HEAD_METHOD;
 
             } else if (!strcmp(http_method, "GET")) {
-                curr_task->response_code = generate_GET_header(curr_task, request, curr_task->last_request);
-                if(curr_task->response_code == OK_NUM){
-                    curr_task->state = SEND_HEADER_STATE;
-                    curr_task->method_type = GET_METHOD;
-                }
+                curr_task->method_type = GET_METHOD;
 
             } else if (!strcmp(http_method, "POST")) {
-                // TODO: handle POST header
+                curr_task->method_type = POST_METHOD;
 
-                curr_task->state = RECV_BODY_STATE;
-
-            } else { // not implemented
+            } else {
                 curr_task->response_code = NOT_IMPLEMENTED_NUM;
                 curr_task->state = GENERATE_HEADER_STATE;
+                free(request->headers);
+                free(request);
+                continue;
             }
 
+
+            if(curr_task->method_type == HEAD_METHOD || curr_task->method_type == POST_METHOD) {
+                curr_task->response_code = generate_GET_header(curr_task, request, curr_task->last_request);
+                if(curr_task->response_code == OK_NUM) {
+                    curr_task->state = SEND_HEADER_STATE;
+
+                } else {
+                    curr_task->state = GENERATE_HEADER_STATE;
+
+                }
+
+            } else { // POST_METHOD
+                curr_task->state = RECV_BODY_STATE;
+
+            }
             free(request->headers);
             free(request);
+
+//            if (!strcmp(http_method, "HEAD")) {
+//                curr_task->response_code = generate_GET_header(curr_task, request, curr_task->last_request);
+//                if(curr_task->response_code == OK_NUM){
+//                    curr_task->state = SEND_HEADER_STATE;
+//                    curr_task->method_type = HEAD_METHOD;
+//                }
+//
+//            } else if (!strcmp(http_method, "GET")) {
+//                curr_task->response_code = generate_GET_header(curr_task, request, curr_task->last_request);
+//                if(curr_task->response_code == OK_NUM){
+//                    curr_task->state = SEND_HEADER_STATE;
+//                    curr_task->method_type = GET_METHOD;
+//
+//                } else {
+//                    curr_task->state = GENERATE_HEADER_STATE;
+//                }
+//
+//            } else if (!strcmp(http_method, "POST")) {
+//                // TODO: handle POST header
+//
+//                curr_task->state = RECV_BODY_STATE;
+//
+//            } else { // not implemented
+//                curr_task->response_code = NOT_IMPLEMENTED_NUM;
+//                curr_task->state = GENERATE_HEADER_STATE;
+//            }
+//
+//            free(request->headers);
+//            free(request);
 
         } else if(curr_task->state == RECV_BODY_STATE) {
             COMM_LOG("%s", "In RECV_BODY_STATE")
@@ -513,7 +552,6 @@ int generate_GET_header(http_task_t* http_task, Request* request, bool last_req)
     FILE* fd = fopen(fullpath, "r");
     if (fd == NULL) {
         HTTP_LOG("Error when opening file %s for reading", fullpath);
-        assert(false); // just kill the server for now
         return INTERNAL_SERVER_ERROR_NUM;
     }
     http_task->fp = fd;
