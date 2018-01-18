@@ -11,14 +11,78 @@ cd src
 // in another terminal tab
 python cp1_checker.py 127.0.0.1 9999 5 50 100000 50
 
-
-
-
-
-
 ********************************************************************
 Implementation Notes
 ********************************************************************
+
+********************************************************************
+CGI ****************************************************************
+********************************************************************
+
+2 parts
+  1. meta-variables (describe a client's request)  
+  2. programmer interface (between the script and the HTTP server)
+
+
+script-URI = <scheme> "://" <server-name> ":" <server-port>
+             <script-path> <extra-path> "?" <query-string>
+
+script: 需要两个东西，一个是meta-variables, 一个是request data。request data可能不是以来就有的，需要HTTP server慢慢接受，但是meta-variables是用env variable直接设的，所以一来就有。
+
+In the event of an error condition, the server can interrupt or
+terminate script execution at any time and without warning.  That
+could occur, for example, in the event of a transport failure between
+the server and the client; so the script SHOULD be prepared to handle
+abnormal termination.
+
+CGI request:
+Need to pipe stdin, pipe stdout, fork(), setup environment variables per the CGI specification, and 
+execve() the executable (it should be executable)
+
+If the CGI program fails in any way, return a 500 response to the client, otherwise
+Send all bytes from the stdout of the spawned process to the requesting client.
+The CGI application will produce headers and message body as it sees fit, you do not need to modify or 
+inspect these bytes at all; you are a proxy...things have come full circle!
+
+Meta-variables are identified by case-insensitive names.
+Meta-variable values MUST be considered case-sensitive except as noted otherwise.
+
+      meta-variable-name = "AUTH_TYPE" | "CONTENT_LENGTH" |
+                           "CONTENT_TYPE" | "GATEWAY_INTERFACE" |
+                           "PATH_INFO" | "PATH_TRANSLATED" |
+                           "QUERY_STRING" | "REMOTE_ADDR" |
+                           "REMOTE_HOST" | "REMOTE_IDENT" |
+                           "REMOTE_USER" | "REQUEST_METHOD" |
+                           "SCRIPT_NAME" | "SERVER_NAME" |
+                           "SERVER_PORT" | "SERVER_PROTOCOL" |
+                           "SERVER_SOFTWARE" | scheme |
+                           protocol-var-name | extension-var-name
+      protocol-var-name  = ( protocol | scheme ) "_" var-name
+      scheme             = alpha *( alpha | digit | "+" | "-" | "." )
+      var-name           = token
+      extension-var-name = token
+
+CONTENT_LENGTH: server MUST set this meta-variable if and only if the request is accompanied by a message-body entity.
+CONTENT_TYPE: server MUST set this meta-variable if an HTTP Content-Type field is present in the client request header.
+GATEWAY_INTERFACE: MUST be set to the dialect of CGI being used by the server to communicate with the script.
+PATH_INFO: a path to be interpreted by the CGI script.  It identifies the resource or sub-resource to be returned by
+           the CGI script, and is derived from the portion of the URI path hierarchy following the part that identifies 
+           the script itself.
+
+QUERY_STRING: it provides information to the CGI script to affect or refine the document to be returned by the script.
+REMOTE_ADDR: The REMOTE_ADDR variable MUST be set to the network address of the client sending the request to the server.
+
+REQUEST_METHOD: MUST be set to the method which should be used by the script to process the request.
+      REQUEST_METHOD   = method
+      method           = "GET" | "POST" | "HEAD" | extension-method
+      extension-method = "PUT" | "DELETE" | token
+
+SCRIPT_NAME: MUST be set to a URI path (not URL-encoded) which could identify the CGI script.
+
+********************************************************************
+HTTP ***************************************************************
+********************************************************************
+
 HTTP methods:
   1. GET
   2. HEAD
