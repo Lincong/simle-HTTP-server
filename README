@@ -173,11 +173,4 @@ response:
 
 
 
-
-
-
-
-
-
-
-
+handle_clients() -> handle_http_request() -> handle_dynamic_request()
