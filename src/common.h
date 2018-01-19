@@ -42,6 +42,7 @@
 #define COMM_LOG_ON true
 #define HANDLER_LOG_ON false
 #define HTTP_LOG_ON true
+#define CGI_LOG_ON true
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))

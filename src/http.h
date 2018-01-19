@@ -99,7 +99,7 @@ typedef struct CGI_executor {
     int clientfd;
     int stdin_pipe[2];    /* { write data --> stdin_pipe[1] } -> { stdin_pipe[0] --> stdin } */
     int stdout_pipe[2];   /* { read data <--  stdout_pipe[0] } <-- {stdout_pipe[1] <-- stdout } */
-    cbuf_t cgi_buffer;
+    cbuf_t* cgi_buffer;
     CGI_param* cgi_parameter;
 } CGI_executor;
 
@@ -107,7 +107,6 @@ typedef struct CGI_pool {
     CGI_executor* executors[FD_SETSIZE];
 } CGI_pool;
 
-extern CGI_pool * cgi_pool;
-
+CGI_pool * cgi_pool;
 
 #endif //HTTP_H

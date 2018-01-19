@@ -9,6 +9,7 @@
 #include "file_handlers.h"
 
 extern char *WWW_DIR;
+extern CGI_pool * cgi_pool;
 
 int read_header_data(peer_t *peer);
 void print_parse_buf(http_task_t* curr_task);
@@ -645,8 +646,9 @@ void free_request(Request* req)
 CGI_param *init_CGI_param() {
     CGI_param * ret = (CGI_param*)malloc(sizeof(CGI_param));
     if (ret == NULL) {
-        dump_log("[FATAL] Fails to allocate memory for CGI parametes");
-        err_sys("[FATAL] Fails to allocate memory for CGI parametes");
+        CGI_LOG("%s", "[FATAL] Fails to allocate memory for CGI parametes")
+        CGI_LOG("%s", "[FATAL] Fails to allocate memory for CGI parametes")
+        assert(false);
     }
     return ret;
 }
@@ -756,8 +758,7 @@ int add_CGI_executor_to_pool(int cliendfd, CGI_param * cgi_parameter) {
         if (cgi_pool->executors[idx] == NULL) {     /* Find an available slot */
             cgi_pool->executors[idx] = (CGI_executor *)malloc(sizeof(CGI_executor));
             cgi_pool->executors[idx]->clientfd = cliendfd;
-            cgi_pool->executors[idx]->cgi_buffer = (dynamic_buffer*)malloc(sizeof(dynamic_buffer));
-            init_dbuffer(cgi_pool->executors[idx]->cgi_buffer);
+            cgi_pool->executors[idx]->cgi_buffer = (cbuf_t *)malloc(sizeof(cbuf_t));
             cgi_pool->executors[idx]->cgi_parameter = cgi_parameter;
             return idx;
         }
@@ -766,7 +767,7 @@ int add_CGI_executor_to_pool(int cliendfd, CGI_param * cgi_parameter) {
 }
 
 void free_CGI_executor(CGI_executor *executor) {
-    free_dbuffer(executor->cgi_buffer);
+    free(executor->cgi_buffer);
     free_CGI_param(executor->cgi_parameter);
     free(executor);
 }
@@ -779,29 +780,29 @@ void free_CGI_pool() {
 }
 
 void print_executor(CGI_executor *executor) {
-    console_log("------Executor Info-------");
-    console_log("Client socket: %d", executor->clientfd);
-    console_log("CGI socket to read from %d", executor->stdout_pipe[0]);
-    console_log("CGI socket to write to %d", executor->stdin_pipe[1]);
-    console_log("Buffer state");
-    console_log("-- Buffer Offset: %d", executor->cgi_buffer->offset);
-    console_log("-- Buffer Capacity: %d", executor->cgi_buffer->capacity);
-    console_log("-- Buffer Content: %s", executor->cgi_buffer->buffer);
-    console_log("-----End Executor Info-----");
+    CGI_LOG("%s", "------Executor Info-------")
+    CGI_LOG("Client socket: %d", executor->clientfd);
+    CGI_LOG("CGI socket to read from %d", executor->stdout_pipe[0])
+    CGI_LOG("CGI socket to write to %d", executor->stdin_pipe[1])
+    CGI_LOG("%s", "Buffer state")
+    CGI_LOG("-- Buffer Offset: %d", executor->cgi_buffer->data)
+    CGI_LOG("-- Buffer Capacity: %d", executor->cgi_buffer->data)
+    CGI_LOG("-- Buffer Content: %s", executor->cgi_buffer->data)
+    CGI_LOG("%s", "-----End Executor Info-----")
 }
 
 void print_CGI_pool() {
     int i = 0;
-    console_log("-------CGI Pool Info--------");
+    CGI_LOG("%s", "-------CGI Pool Info--------")
     if (cgi_pool == NULL) {
-        console_log("Empty CGI Pool");
-        return ;
+        CGI_LOG("%s", "Empty CGI Pool")
+        return;
     }
     while (cgi_pool->executors[i] != NULL) {
         print_executor(cgi_pool->executors[i]);
         i++;
     }
-    console_log("-------END CGI Pool Info--------");
+    CGI_LOG("%s", "-------END CGI Pool Info--------")
 }
 
 CGI_executor * get_CGI_executor_by_client(int client) {
@@ -811,7 +812,7 @@ CGI_executor * get_CGI_executor_by_client(int client) {
             return cgi_pool->executors[idx];
         }
     }
-    console_log("[WARNING] No executor found for client %d", client);
+    CGI_LOG("[WARNING] No executor found for client %d", client)
     return NULL;
 }
 
@@ -828,77 +829,58 @@ void execve_error_handler() {
     switch (errno)
     {
         case E2BIG:
-            console_log("The total number of bytes in the environment \
-(envp) and argument list (argv) is too large.\n");
+            CGI_LOG("%s", "The total number of bytes in the environment (envp) and argument list (argv) is too large.")
             return;
         case EACCES:
-            console_log("Execute permission is denied for the file or a \
-script or ELF interpreter.\n");
+            CGI_LOG("%s", "Execute permission is denied for the file or a script or ELF interpreter.")
             return;
         case EFAULT:
-            console_log("filename points outside your accessible address \
-space.\n");
+            CGI_LOG("%s", "ilename points outside your accessible address space.")
             return;
         case EINVAL:
-            console_log("An ELF executable had more than one PT_INTERP \
-segment (i.e., tried to name more than one \
-interpreter).\n");
+            CGI_LOG("%s", "iAn ELF executable had more than one PT_INTERP segment (i.e., tried to name more than one interpreter).")
             return;
         case EIO:
-            console_log("An I/O error occurred.\n");
+            CGI_LOG("%s", "An I/O error occurred.")
             return;
         case EISDIR:
-            console_log("An ELF interpreter was a directory.\n");
+            CGI_LOG("%s", "An ELF interpreter was a directory.")
             return;
-        case ELIBBAD:
-            console_log("An ELF interpreter was not in a recognised \
- format.\n");
-            return;
+//        case ELIBBAD:
+//            CGI_LOG("%s", "An ELF interpreter was not in a recognised format.")
+//            return;
         case ELOOP:
-            console_log("Too many symbolic links were encountered in \
-resolving filename or the name of a script \
-or ELF interpreter.\n");
+            CGI_LOG("%s", "Too many symbolic links were encountered in resolving filename or the name of a script or ELF interpreter.")
             return;
         case EMFILE:
-            console_log("The process has the maximum number of files \
-open.\n");
+            CGI_LOG("%s", "The process has the maximum number of files open.")
             return;
         case ENAMETOOLONG:
-            console_log("filename is too long.\n");
+            CGI_LOG("%s", "filename is too long.")
             return;
         case ENFILE:
-            console_log("The system limit on the total number of open \
-files has been reached.\n");
+            CGI_LOG("%s", "The system limit on the total number of open files has been reached.")
             return;
         case ENOENT:
-            console_log("The file filename or a script or ELF interpreter \
-does not exist, or a shared library needed for \
-file or interpreter cannot be found.\n");
+            CGI_LOG("%s", "The file filename or a script or ELF interpreter does not exist, or a shared library needed for file or interpreter cannot be found.")
             return;
         case ENOEXEC:
-            console_log("An executable is not in a recognised format, is \
-for the wrong architecture, or has some other \
-format error that means it cannot be \
-executed.\n");
+            CGI_LOG("%s", "An executable is not in a recognised format, is for the wrong architecture, or has some other format error that means it cannot be executed.")
             return;
         case ENOMEM:
-            console_log("Insufficient kernel memory was available.\n");
+            CGI_LOG("%s", "Insufficient kernel memory was available.")
             return;
         case ENOTDIR:
-            console_log("A component of the path prefix of filename or a \
-script or ELF interpreter is not a directory.\n");
+            CGI_LOG("%s", "A component of the path prefix of filename or a script or ELF interpreter is not a directory.")
             return;
         case EPERM:
-            console_log("The file system is mounted nosuid, the user is \
-not the superuser, and the file has an SUID or \
-SGID bit set.\n");
+            CGI_LOG("%s", "The file system is mounted nosuid, the user is not the superuser, and the file has an SUID or SGID bit set.")
             return;
         case ETXTBSY:
-            console_log("Executable was open for writing by one or more \
-processes.\n");
+            CGI_LOG("%s", "Executable was open for writing by one or more processes.")
             return;
         default:
-            console_log("Unkown error occurred with execve().\n");
+            CGI_LOG("%s", "Unkown error occurred with execve().")
             return;
     }
 }
@@ -922,22 +904,26 @@ void handle_dynamic_request(int cliendfd, CGI_param *cgi_parameter, char *post_b
     }
 
     if (slot == FD_SETSIZE) {
-        err_sys("[Fatal] No available space for more cgi executors");
+        CGI_LOG("%s ","[Fatal] No available space for more cgi executors")
+        assert(false);
     }
 
     pid_t pid;
 
     if (pipe(cgi_pool->executors[slot]->stdin_pipe) < 0) {
-        err_sys("[Fatal] Error piping for stdin for cliend %d", cliendfd);
+        CGI_LOG("[Fatal] Error piping for stdin for cliend %d", cliendfd)
+        assert(false);
     }
 
     if (pipe(cgi_pool->executors[slot]->stdout_pipe) < 0) {
-        err_sys("[Fatal] Error piping for stdin for cliend %d", cliendfd);
+        CGI_LOG("[Fatal] Error piping for stdin for cliend %d", cliendfd)
+        assert(false);
     }
 
     pid = fork();
     if (pid < 0) {
-        err_sys("[Fatal] Error forking child CGI process for client %d", cliendfd);
+        CGI_LOG("[Fatal] Error forking child CGI process for client %d", cliendfd)
+        assert(false);
     }
 
     if (pid == 0) {     /* Child CGI process */
@@ -951,7 +937,8 @@ void handle_dynamic_request(int cliendfd, CGI_param *cgi_parameter, char *post_b
                    cgi_pool->executors[slot]->cgi_parameter->args,
                    cgi_pool->executors[slot]->cgi_parameter->envp)) {
             execve_error_handler();
-            err_sys("[Fatal] Error executing CGI script for cliend %d", cliendfd);
+            CGI_LOG("[Fatal] Error executing CGI script for cliend %d", cliendfd)
+            assert(false);
         }
     }
 
