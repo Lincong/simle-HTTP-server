@@ -65,6 +65,8 @@ typedef struct {
     cbuf_t sending_buffer;   // data in the outgoing buffer
     cbuf_t receiving_buffer;
     bool close_conn;
+
+    int cgi_fd;
 } peer_t;
 
 int create_peer(peer_t *peer);

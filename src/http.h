@@ -107,6 +107,7 @@ typedef struct CGI_pool {
     CGI_executor* executors[FD_SETSIZE];
 } CGI_pool;
 
-CGI_pool * cgi_pool;
-
+extern CGI_pool * cgi_pool;
+void add_cgi_fd_to_pool(int client_fd, int cgi_fd, client_cgi_state state);
+void clear_cgi_from_pool(int client_fd);
 #endif //HTTP_H

@@ -187,6 +187,7 @@ int create_peer(peer_t *peer)
 {
     peer->http_task = create_http_task();
     peer->close_conn = false;
+    peer->cgi_fd = -1;
     reset_sending_buff(peer);
     reset_receiving_buff(peer);
     return 0;

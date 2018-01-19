@@ -54,6 +54,11 @@
 #define CLOSE_CONN 0 // close connection after the sending buffer becomes empty
 #define CLOSE_CONN_IMMEDIATELY 1 // used when some error happened
 #define KEEP_CONN  2
+#define CGI_READY_FOR_READ 3
+#define CGI_READY_FOR_WRITE 4
+#define CGI_READY_FOR_READ_CLOSE 5
+#define CGI_READY_FOR_WRITE_CLOSE 6
+
 
 // HTTP protocol states
 #define RECV_HEADER_STATE 1
@@ -62,7 +67,23 @@
 #define SEND_HEADER_STATE 4
 #define SEND_BODY_STATE   5
 #define FINISHED_STATE 6
+#define CHECK_CGI 7
 
 #define DEFAULT_WWW_DIR "/Users/lincongli/Desktop/CSE124/src/www/"
+
+typedef enum client_cgi_state {
+    INVALID,
+    READY_FOR_READ,
+    READY_FOR_WRITE,
+    WAITING_FOR_CGI,
+    CGI_FOR_READ,
+    CGI_FOR_WRITE
+} client_cgi_state;
+
+typedef struct sockaddr sockaddr;
+typedef struct sockaddr_in sockaddr_in;
+typedef struct sockaddr_in6 sockaddr_in6;
+typedef struct sockaddr_storage sockaddr_storage;
+typedef struct addrinfo addrinfo;
 
 #endif //COMMON_H
