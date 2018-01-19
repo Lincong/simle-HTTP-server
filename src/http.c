@@ -705,16 +705,17 @@ void build_CGI_param(CGI_param * param,  Request *request, host_and_port hap) {
 }
 
 void print_CGI_param(CGI_param * param) {
-    console_log("-------CGI Param------");
-    console_log("[Filename]: %s", param->filename);
-    console_log("[Args]: %s", param->args[0]);
-    console_log("[Envp]:");
+    CGI_LOG("%s", "-------CGI Param------")
+    CGI_LOG("Filename]: %s", param->filename)
+    CGI_LOG("[Args]: %s", param->args[0])
+    CGI_LOG("%s", "Envp]:")
     int i = 0;
     while(param->envp[i] != NULL) {
-        console_log("%d : %s", i+1, param->envp[i]);
+        CGI_LOG("%d", i+1)
+        CGI_LOG("%s", param->envp[i])
         i++;
     }
-    console_log("-------End CGI Para------");
+    CGI_LOG("%s", "-------End CGI Para------")
 }
 
 char *new_string(char *str) {
