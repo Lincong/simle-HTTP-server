@@ -39,4 +39,11 @@ FILE *log_fd;
                                 fprintf(log_fd, "\n");          \
                                 fflush(log_fd); }
 
+#define CGI_LOG(tag, msg) if(CGI_LOG_ON){char stringa[LOG_MSG_BUF_SIZE];   \
+                                sprintf(stringa, tag, msg);     \
+                                fprintf(log_fd, "[CGI_LOG]: ");\
+                                fprintf(log_fd, stringa);       \
+                                fprintf(log_fd, "\n");          \
+                                fflush(log_fd); }
+
 #endif //LOGGER_H
