@@ -164,6 +164,7 @@ void reset_http_task(http_task_t* http_task)
     http_task->parse_buf_idx = 0;
     http_task->header_term_token_status = 0;
     http_task->method_type = 0; // NO_METHOD
+    http_task->is_waiting_for_CGI_sending = false;
     http_task->last_request = false;
     http_task->response_code = -1; // no response code
     http_task->body_bytes_num = 0;

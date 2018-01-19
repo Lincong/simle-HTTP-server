@@ -46,6 +46,7 @@ typedef struct {
     int header_term_token_status; // when it is 4, it means "\r\n\r\n" is matched, 3 means "\r\n\r" is matched and etc
     cbuf_t response_buf; // might need to make it be dynamic buffer
     int method_type;
+    bool is_waiting_for_CGI_sending; // when the sending buffer is empty, check it and "last_request" to determine if close the connection
     bool last_request;
     int response_code;
     size_t body_bytes_num;
@@ -65,8 +66,6 @@ typedef struct {
     cbuf_t sending_buffer;   // data in the outgoing buffer
     cbuf_t receiving_buffer;
     bool close_conn;
-
-    int cgi_fd;
 } peer_t;
 
 int create_peer(peer_t *peer);

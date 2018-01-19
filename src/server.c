@@ -22,6 +22,7 @@ void handle_signal_action(int sig_number);
 int setup_signals();
 int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds);
 void init_server(int argc, char* argv[]); // set http port and other parameters
+void add_cgi_fd_to_pool(int clientfd, int cgi_fd, client_cgi_state state);
 
 int main(int argc, char* argv[])
 {
@@ -125,20 +126,67 @@ int main(int argc, char* argv[])
 
                     // handle HTTP
                     if(has_read || has_sent) {
-                        int ret = handle_http(&connection_list[i]);
+                        int ret = handle_http(&connection_list[i]); // actually handle HTTP
                         if(ret == CLOSE_CONN_IMMEDIATELY){
                             SERVER_LOG("Close connection %d", i)
                             close_client_connection(&connection_list[i]);
 
-                        }else if(ret == CLOSE_CONN){
+                        } else if(ret == CLOSE_CONN){
                             connection_list[i].close_conn = true;
 
+                        } else if(ret == CGI_READY_FOR_WRITE) {
+                            connection_list[i].http_task->is_waiting_for_CGI_sending = true;
+                            CGI_executor* executor = get_CGI_executor_by_client(connection_list[i].socket);
+                            if (executor == NULL){
+                                SERVER_LOG("[ERROR] Can not get CGI executor to write to on client %d", connection_list[i].socket)
+                                assert(false);
+                            }
+                            add_cgi_fd_to_pool(connection_list[i].socket, executor->stdin_pipe[1], CGI_FOR_WRITE);
+
+                        } else if(ret == CGI_READY_FOR_READ) {
+                            connection_list[i].http_task->is_waiting_for_CGI_sending = true;
+                            CGI_executor* executor = get_CGI_executor_by_client(connection_list[i].socket);
+                            if (executor == NULL) {
+                                SERVER_LOG("[ERROR] Can not get CGI executor to read from on client %d", connection_list[i].socket);
+                                assert(false);
+                            }
+                            // add stdin of the child process
+                            executor->stdin_pipe[0]
+//                            add_cgi_fd_to_pool(connection_list[i].socket, executor->stdout_pipe[0], CGI_FOR_READ);
                         }
                     }
                 }
         }
     }
     return EXIT_SUCCESS;
+}
+
+void add_cgi_fd_to_pool(int clientfd, int cgi_fd, client_cgi_state state) {
+    int i;
+    peer_t client;
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        client = connection_list[i];
+        if (client.cgi_fd == -1) {
+
+            /* Update global data */
+            FD_SET(cgi_fd, );
+            p->maxfd = MAX(cgi_fd, p->maxfd);
+            p->maxi = MAX(i, p->maxi);
+
+            /* Update client data */
+            p->client_fd[i] = cgi_fd;
+            p->state[i] = state;
+
+            /* CGI */
+            p->cgi_client[i] = clientfd;
+            break;
+        }
+    }
+    if (i == MAX_CLIENTS) {
+        /* Coundn't find available slot in pool */
+        SERVER_LOG("%s", "No available slot for new cgi process fd")
+        assert(false);
+    }
 }
 
 void server_shutdown_properly(int code)

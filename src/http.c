@@ -56,7 +56,7 @@ void clear_CGI_executor_by_client(int clientfd);
 void* get_in_addr(sockaddr *sa);
 
 void execve_error_handler();
-void handle_dynamic_request(int cliendfd, CGI_param *cgi_parameter, char *post_body, size_t content_length);
+void handle_dynamic_request(peer_t* client, CGI_param *cgi_parameter, char *post_body, size_t content_length);
 
 /*
   _   _ _____ _____ ____    ____                            _     _                     _ _
@@ -272,20 +272,20 @@ int handle_http(peer_t *peer) {
                 if (!strcmp(request->http_method, "POST")) {
                     size_t cl = atoi(get_header_value(request, "Content-Length"));
                     if (cl > 0) {
-                        handle_dynamic_request(peer->cgi_fd, cgi_parameters, post_body, cl);
-                        if (curr_task->last_request)
-                            return CGI_READY_FOR_WRITE_CLOSE;
-                        else
-                            return CGI_READY_FOR_WRITE;
+                        handle_dynamic_request(peer, cgi_parameters, post_body, cl);
+//                        if (curr_task->last_request)
+//                            return CGI_READY_FOR_WRITE_CLOSE;
+//                        else
+                        return CGI_READY_FOR_WRITE;
                     }
                 }
 
                 // handle CGI for GET and HEAD
-                handle_dynamic_request(peer->cgi_fd, cgi_parameters, NULL, 0);
-                if (curr_task->last_request)
-                    return CGI_READY_FOR_READ_CLOSE;
-                else
-                    return CGI_READY_FOR_READ;
+                handle_dynamic_request(peer, cgi_parameters, NULL, 0);
+//                if (curr_task->last_request)
+//                    return CGI_READY_FOR_READ_CLOSE;
+//                else
+                return CGI_READY_FOR_READ;
 
             } else { // static content
                 CGI_LOG("%s", "It's a static content request!")
@@ -962,14 +962,13 @@ void execve_error_handler() {
     }
 }
 
-void handle_dynamic_request(int cliendfd, CGI_param *cgi_parameter, char *post_body, size_t content_length) {
+void handle_dynamic_request(peer_t* client, CGI_param *cgi_parameter, char *post_body, size_t content_length) {
     int slot = 0;
     for (; slot < FD_SETSIZE; slot++) {
         if (cgi_pool->executors[slot] == NULL) {
             cgi_pool->executors[slot] = (CGI_executor *) malloc(sizeof(CGI_executor));
-            cgi_pool->executors[slot]->clientfd = cliendfd;
             cgi_pool->executors[slot]->cgi_parameter = cgi_parameter;
-
+            cgi_pool->executors[slot]->client = client;
             cgi_pool->executors[slot]->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
             if (content_length > 0) {
                 // Message body, have to write to CGI process */
@@ -988,18 +987,18 @@ void handle_dynamic_request(int cliendfd, CGI_param *cgi_parameter, char *post_b
     pid_t pid;
     // pipe(int[2]):  if successful, the array will contain two new file descriptors to be used for the pipeline
     if (pipe(cgi_pool->executors[slot]->stdin_pipe) < 0) {
-        CGI_LOG("[Fatal] Error piping for stdin for cliend %d", cliendfd)
+        CGI_LOG("[Fatal] Error piping for stdin for cliend %d", client->socket)
         assert(false);
     }
 
     if (pipe(cgi_pool->executors[slot]->stdout_pipe) < 0) {
-        CGI_LOG("[Fatal] Error piping for stdin for cliend %d", cliendfd)
+        CGI_LOG("[Fatal] Error piping for stdin for cliend %d", client->socket)
         assert(false);
     }
 
     pid = fork();
     if (pid < 0) {
-        CGI_LOG("[Fatal] Error forking child CGI process for client %d", cliendfd)
+        CGI_LOG("[Fatal] Error forking child CGI process for client %d", client->socket)
         assert(false);
     }
 
@@ -1014,7 +1013,7 @@ void handle_dynamic_request(int cliendfd, CGI_param *cgi_parameter, char *post_b
                    cgi_pool->executors[slot]->cgi_parameter->args,
                    cgi_pool->executors[slot]->cgi_parameter->envp)) {
             execve_error_handler();
-            CGI_LOG("[Fatal] Error executing CGI script for cliend %d", cliendfd)
+            CGI_LOG("[Fatal] Error executing CGI script for cliend %d", client->socket)
             assert(false);
         }
     }
@@ -1031,31 +1030,6 @@ void *get_in_addr(sockaddr *sa) {
         return &(((sockaddr_in *) sa)->sin_addr);
     }
     return &(((sockaddr_in6 *) sa)->sin6_addr);
-}
-
-void add_cgi_fd_to_pool(int clientfd, int cgi_fd, client_cgi_state state) {
-    int i;
-
-    for (i = 0; i < FD_SETSIZE; i++) {
-        if (p->client_fd[i] < 0) {
-            /* Update global data */
-            FD_SET(cgi_fd, &p->master);
-            p->maxfd = MAX(cgi_fd, p->maxfd);
-            p->maxi = MAX(i, p->maxi);
-
-            /* Update client data */
-            p->client_fd[i] = cgi_fd;
-            p->state[i] = state;
-
-            /* CGI */
-            p->cgi_client[i] = clientfd;
-            break;
-        }
-    }
-    if (i == FD_SETSIZE) {
-        /* Coundn't find available slot in pool */
-        err_sys("No available slot for new cgi process fd");
-    }
 }
 
 void clear_cgi_from_pool(int clientfd) {

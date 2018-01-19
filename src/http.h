@@ -101,6 +101,7 @@ typedef struct CGI_executor {
     int stdout_pipe[2];   /* { read data <--  stdout_pipe[0] } <-- {stdout_pipe[1] <-- stdout } */
     cbuf_t* cgi_buffer;
     CGI_param* cgi_parameter;
+    peer_t* client;
 } CGI_executor;
 
 typedef struct CGI_pool {
@@ -108,6 +109,7 @@ typedef struct CGI_pool {
 } CGI_pool;
 
 extern CGI_pool * cgi_pool;
-void add_cgi_fd_to_pool(int client_fd, int cgi_fd, client_cgi_state state);
-void clear_cgi_from_pool(int client_fd);
+//void add_cgi_fd_to_pool(int client_fd, int cgi_fd, client_cgi_state state);
+//void clear_cgi_from_pool(int client_fd);
+CGI_executor *get_CGI_executor_by_client(int client);
 #endif //HTTP_H
