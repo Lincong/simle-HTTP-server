@@ -270,8 +270,8 @@ int receive_from_peer(peer_t *peer, int (*message_handler)(peer_t *))
     else if (received_count == 0) {
         COMM_LOG("%s", "recv() 0 bytes. Peer gracefully shutdown.")
         return EXIT_FAILURE;
-    }
-    else if (received_count > 0) {
+
+    } else if (received_count > 0) {
         if(write_to_receiving_buffer(peer, data, (size_t)received_count) == EXIT_FAILURE) {
             COMM_LOG("%s", "Write to receiving buffer failed!")
             return EXIT_FAILURE;

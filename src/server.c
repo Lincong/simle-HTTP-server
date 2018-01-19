@@ -93,7 +93,8 @@ int main(int argc, char* argv[])
                 for (i = 0; i < MAX_CLIENTS; ++i) {
                     has_read = false;
                     has_sent = false;
-                    if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &read_fds)) {
+                    if (connection_list[i].socket != NO_SOCKET &&
+                        FD_ISSET(connection_list[i].socket, &read_fds)) {
                         if (receive_from_peer(&connection_list[i], &echo_received_message) != EXIT_SUCCESS) {
                             close_client_connection(&connection_list[i]);
                             continue;
@@ -104,8 +105,7 @@ int main(int argc, char* argv[])
 
                     if (connection_list[i].socket != NO_SOCKET &&
                         FD_ISSET(connection_list[i].socket, &write_fds)){ //&& !buf_empty(&connection_list[i].sending_buffer) )) {
-                        int ret = send_to_peer(&connection_list[i]);
-//                        SERVER_LOG("ret: %d", ret)
+                        int ret = send_to_peer(&connection_list[i]); // sending bytes in the sending buffer to clients
                         if (ret == EXIT_FAILURE) {
                             close_client_connection(&connection_list[i]);
                             continue;
@@ -116,7 +116,8 @@ int main(int argc, char* argv[])
                         } // otherwise if ret == NOTHING_TO_SEND, do nothing
                     }
 
-                    if (connection_list[i].socket != NO_SOCKET && FD_ISSET(connection_list[i].socket, &except_fds)) {
+                    if (connection_list[i].socket != NO_SOCKET &&
+                        FD_ISSET(connection_list[i].socket, &except_fds)) {
                         SERVER_LOG("%s", "Exception client fd.")
                         close_client_connection(&connection_list[i]);
                         continue;
