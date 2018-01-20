@@ -35,23 +35,17 @@ void free_request(Request* req);
 
 // CGI
 
-CGI_param *init_CGI_param();
+//CGI_param *init_CGI_param();
+
 void build_CGI_param(CGI_param*, Request*, host_and_port);
 void print_CGI_param(CGI_param*);
-void free_CGI_param(CGI_param*);
+
 char *new_string(char *);
 void set_envp_field_by_str (char *, char *, char *, CGI_param*, int);
 void set_envp_field_with_header (Request *, char *, char *, char *, CGI_param*, int);
 
 void init_CGI_pool();
-//CGI_executor* init_CGI_executor();
-//int add_CGI_executor_to_pool(int cliendfd, CGI_param * cgi_parameter);
-void free_CGI_executor(CGI_executor *executor);
-void free_CGI_pool();
 void print_executor(CGI_executor *);
-void print_CGI_pool();
-CGI_executor * get_CGI_executor_by_client(int clientfd);
-void clear_CGI_executor_by_client(int clientfd);
 void* get_in_addr(sockaddr *sa);
 
 void execve_error_handler();
@@ -157,13 +151,12 @@ int handle_http(peer_t *peer) {
             // just read out all bytes that belong to the message body from the receiving buffer
             cbuf_t *receiving_buffer = &peer->receiving_buffer;
             uint8_t data;
-            while (curr_task->body_bytes_num > 0) {
+            while (curr_task->post_body_idx < curr_task->body_bytes_num) {
                 if (buf_empty(receiving_buffer)) // read from the receiving buffer later
                     return KEEP_CONN;
                 buf_get(receiving_buffer, &data);
                 curr_task->post_body[curr_task->post_body_idx] = data;
                 curr_task->post_body_idx++;
-                curr_task->body_bytes_num--;
             }
             HTTP_LOG("%s", "Finished receiving body")
             curr_task->state = CHECK_CGI; // after receiving POST body, go check if it is a CGI request
@@ -233,16 +226,15 @@ int handle_http(peer_t *peer) {
                 init_CGI_pool();
 
                 if (!strcmp(request->http_method, "POST")) {
-                    size_t cl = atoi(get_header_value(request, "Content-Length"));
-                    if (cl > 0) {
-                        handle_dynamic_request(peer, cgi_parameters, post_body, cl);
+                    if (curr_task->body_bytes_num > 0) {
+                        handle_dynamic_request(peer, cgi_parameters, curr_task->post_body, (size_t)curr_task->body_bytes_num);
                         return CGI_READY_FOR_WRITE;
                     }
                 }
 
                 // handle CGI for GET and HEAD
                 handle_dynamic_request(peer, cgi_parameters, NULL, 0);
-                return CGI_READY_FOR_READ;
+                return CGI_READY_FOR_READ; // since args are sent to the child process via env variables, we can just read from it
 
             } else { // static content
                 CGI_LOG("%s", "It's a static content request!")
@@ -764,48 +756,33 @@ void set_envp_field_with_header(Request *request, char *header, char *envp_name,
     param->envp[index] = new_string(buf);
 }
 
-void free_CGI_param(CGI_param *param) {
-    int i = 0;
-    while (param->envp[i] != NULL) {
-        free(param->envp[i]);
-        i++;
-    }
-    free(param);
-}
+//void init_CGI_pool() {
+//    cgi_pool = (CGI_pool *) malloc(sizeof(CGI_pool));
+//    int idx = 0;
+//    for (; idx < FD_SETSIZE; idx++)
+//        cgi_pool->executors[idx] = NULL;
+//}
+//
+//int add_CGI_executor_to_pool(int cliendfd, CGI_param *cgi_parameter) {
+//    int idx = 0;
+//    for (; idx < FD_SETSIZE; idx++) {
+//        if (cgi_pool->executors[idx] == NULL) {     /* Find an available slot */
+//            cgi_pool->executors[idx] = (CGI_executor *) malloc(sizeof(CGI_executor));
+//            cgi_pool->executors[idx]->clientfd = cliendfd;
+//            cgi_pool->executors[idx]->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
+//            cgi_pool->executors[idx]->cgi_parameter = cgi_parameter;
+//            return idx;
+//        }
+//    }
+//    return -1;
+//}
 
-void init_CGI_pool() {
-    cgi_pool = (CGI_pool *) malloc(sizeof(CGI_pool));
-    int idx = 0;
-    for (; idx < FD_SETSIZE; idx++)
-        cgi_pool->executors[idx] = NULL;
-}
-
-int add_CGI_executor_to_pool(int cliendfd, CGI_param *cgi_parameter) {
-    int idx = 0;
-    for (; idx < FD_SETSIZE; idx++) {
-        if (cgi_pool->executors[idx] == NULL) {     /* Find an available slot */
-            cgi_pool->executors[idx] = (CGI_executor *) malloc(sizeof(CGI_executor));
-            cgi_pool->executors[idx]->clientfd = cliendfd;
-            cgi_pool->executors[idx]->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
-            cgi_pool->executors[idx]->cgi_parameter = cgi_parameter;
-            return idx;
-        }
-    }
-    return -1;
-}
-
-void free_CGI_executor(CGI_executor *executor) {
-    free(executor->cgi_buffer);
-    free_CGI_param(executor->cgi_parameter);
-    free(executor);
-}
-
-void free_CGI_pool() {
-    int idx = 0;
-    for (; idx < FD_SETSIZE; idx++)
-        if (cgi_pool->executors[idx] != NULL)
-            free_CGI_executor(cgi_pool->executors[idx]);
-}
+//void free_CGI_pool() {
+//    int idx = 0;
+//    for (; idx < FD_SETSIZE; idx++)
+//        if (cgi_pool->executors[idx] != NULL)
+//            free_CGI_executor(cgi_pool->executors[idx]);
+//}
 
 void print_executor(CGI_executor *executor) {
     CGI_LOG("%s", "------Executor Info-------")
@@ -819,30 +796,30 @@ void print_executor(CGI_executor *executor) {
     CGI_LOG("%s", "-----End Executor Info-----")
 }
 
-void print_CGI_pool() {
-    int i = 0;
-    CGI_LOG("%s", "-------CGI Pool Info--------")
-    if (cgi_pool == NULL) {
-        CGI_LOG("%s", "Empty CGI Pool")
-        return;
-    }
-    while (cgi_pool->executors[i] != NULL) {
-        print_executor(cgi_pool->executors[i]);
-        i++;
-    }
-    CGI_LOG("%s", "-------END CGI Pool Info--------")
-}
+//void print_CGI_pool() {
+//    int i = 0;
+//    CGI_LOG("%s", "-------CGI Pool Info--------")
+//    if (cgi_pool == NULL) {
+//        CGI_LOG("%s", "Empty CGI Pool")
+//        return;
+//    }
+//    while (cgi_pool->executors[i] != NULL) {
+//        print_executor(cgi_pool->executors[i]);
+//        i++;
+//    }
+//    CGI_LOG("%s", "-------END CGI Pool Info--------")
+//}
 
-CGI_executor *get_CGI_executor_by_client(int client) {
-    int idx = 0;
-    for (; idx < FD_SETSIZE; idx++) {
-        if ((cgi_pool->executors[idx] != NULL) && (cgi_pool->executors[idx]->clientfd == client)) {
-            return cgi_pool->executors[idx];
-        }
-    }
-    CGI_LOG("[WARNING] No executor found for client %d", client)
-    return NULL;
-}
+//CGI_executor *get_CGI_executor_by_client(int client) {
+//    int idx = 0;
+//    for (; idx < FD_SETSIZE; idx++) {
+//        if ((cgi_pool->executors[idx] != NULL) && (cgi_pool->executors[idx]->clientfd == client)) {
+//            return cgi_pool->executors[idx];
+//        }
+//    }
+//    CGI_LOG("[WARNING] No executor found for client %d", client)
+//    return NULL;
+//}
 
 void clear_CGI_executor_by_client(int clientfd) {
     int idx = 0;
@@ -920,27 +897,28 @@ void execve_error_handler() {
 }
 
 void handle_dynamic_request(peer_t* client, CGI_param *cgi_parameter, char *post_body, size_t content_length) {
-    int slot = 0;
-    for (; slot < FD_SETSIZE; slot++) {
-        if (cgi_pool->executors[slot] == NULL) {
-            cgi_pool->executors[slot] = (CGI_executor *) malloc(sizeof(CGI_executor));
-            cgi_pool->executors[slot]->cgi_parameter = cgi_parameter;
-            cgi_pool->executors[slot]->client = client;
-            cgi_pool->executors[slot]->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
-            if (content_length > 0) {
-                // Message body, have to write to CGI process */
-                // append_content_dbuffer(cgi_pool->executors[slot]->cgi_buffer, post_body, content_length);
-                buf_write(cgi_pool->executors[slot]->cgi_buffer, post_body, content_length);
-            }
-            break;
-        }
-    }
+//    int slot = 0;
+//    for (; slot < FD_SETSIZE; slot++) {
+//        if (cgi_pool->executors[slot] == NULL) {
+//            cgi_pool->executors[slot] = (CGI_executor *) malloc(sizeof(CGI_executor));
+//            cgi_pool->executors[slot]->cgi_parameter = cgi_parameter;
+//            cgi_pool->executors[slot]->client = client;
+//            cgi_pool->executors[slot]->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
+//            if (content_length > 0) {
+//                // Message body, have to write to CGI process */
+//                // append_content_dbuffer(cgi_pool->executors[slot]->cgi_buffer, post_body, content_length);
+//                buf_write(cgi_pool->executors[slot]->cgi_buffer, post_body, content_length);
+//            }
+//            break;
+//        }
+//    }
+//
+//    if (slot == FD_SETSIZE) {
+//        CGI_LOG("%s ", "[Fatal] No available space for more cgi executors")
+//        assert(false);
+//    }
 
-    if (slot == FD_SETSIZE) {
-        CGI_LOG("%s ", "[Fatal] No available space for more cgi executors")
-        assert(false);
-    }
-
+    client->cgi_executor
     pid_t pid;
     // pipe(int[2]):  if successful, the array will contain two new file descriptors to be used for the pipeline
     if (pipe(cgi_pool->executors[slot]->stdin_pipe) < 0) {
@@ -989,38 +967,38 @@ void *get_in_addr(sockaddr *sa) {
     return &(((sockaddr_in6 *) sa)->sin6_addr);
 }
 
-void clear_cgi_from_pool(int clientfd) {
-    int i;
-    for (i = 0; i < FD_SETSIZE; i++) {
-        if (p->cgi_client[i] == clientfd) {
-            /* Update global data */
-            FD_CLR(p->client_fd[i], &p->master);
-
-            /* Update client data */
-            close(p->client_fd[i]);
-            p->client_fd[i] = -1;
-            if (p->client_buffer[i] != NULL) free_dbuffer(p->client_buffer[i]);
-            if (p->back_up_buffer[i] != NULL) free_dbuffer(p->back_up_buffer[i]);
-            p->client_buffer[i] = NULL;
-            p->back_up_buffer[i] = NULL;
-            p->received_header[i] = 0;
-            p->should_be_close[i] = 0;
-            p->state[i] = INVALID;
-            p->remote_addr[i] = NULL;
-
-            /* SSL */
-            if (p->type[i] == HTTPS_CLIENT && p->context[i] != NULL) SSL_free(p->context[i]);
-            p->type[i] = INVALID_CLIENT;
-            p->context[i] = NULL;
-
-            /* CGI */
-            p->cgi_client[i] = -1;
-            break;
-        }
-    }
-
-    if (i == FD_SETSIZE) {
-        /* Coundn't find available slot in pool */
-        CGI_LOG("[clear cgi from pool] No cgi info of client %d", clientfd);
-    }
-}
+//void clear_cgi_from_pool(int clientfd) {
+//    int i;
+//    for (i = 0; i < FD_SETSIZE; i++) {
+//        if (p->cgi_client[i] == clientfd) {
+//            /* Update global data */
+//            FD_CLR(p->client_fd[i], &p->master);
+//
+//            /* Update client data */
+//            close(p->client_fd[i]);
+//            p->client_fd[i] = -1;
+//            if (p->client_buffer[i] != NULL) free_dbuffer(p->client_buffer[i]);
+//            if (p->back_up_buffer[i] != NULL) free_dbuffer(p->back_up_buffer[i]);
+//            p->client_buffer[i] = NULL;
+//            p->back_up_buffer[i] = NULL;
+//            p->received_header[i] = 0;
+//            p->should_be_close[i] = 0;
+//            p->state[i] = INVALID;
+//            p->remote_addr[i] = NULL;
+//
+//            /* SSL */
+//            if (p->type[i] == HTTPS_CLIENT && p->context[i] != NULL) SSL_free(p->context[i]);
+//            p->type[i] = INVALID_CLIENT;
+//            p->context[i] = NULL;
+//
+//            /* CGI */
+//            p->cgi_client[i] = -1;
+//            break;
+//        }
+//    }
+//
+//    if (i == FD_SETSIZE) {
+//        /* Coundn't find available slot in pool */
+//        CGI_LOG("[clear cgi from pool] No cgi info of client %d", clientfd);
+//    }
+//}

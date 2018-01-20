@@ -178,6 +178,32 @@ void reset_http_task(http_task_t* http_task)
         free(http_task->post_body);
     int post_body_idx = 0;
 }
+
+/*
+   _____ _____ _____
+  / ____/ ____|_   _|
+ | |   | |  __  | |
+ | |   | | |_ | | |
+ | |___| |__| |_| |_
+  \_____\_____|_____|
+
+*/
+
+void free_CGI_executor(CGI_executor *executor) {
+    free(executor->cgi_buffer);
+    free_CGI_param(executor->cgi_parameter);
+    free(executor);
+}
+
+void free_CGI_param(CGI_param *param) {
+    int i = 0;
+    while (param->envp[i] != NULL) {
+        free(param->envp[i]);
+        i++;
+    }
+    free(param);
+}
+
 /*
  | '_ \ / _ \/ _ \ '__|
  | |_) |  __/  __/ |
@@ -189,6 +215,7 @@ int delete_peer(peer_t *peer)
 {
     close(peer->socket);
     destroy_http_task(peer->http_task);
+
     return 0;
 }
 
@@ -196,7 +223,8 @@ int create_peer(peer_t *peer)
 {
     peer->http_task = create_http_task();
     peer->close_conn = false;
-    peer->cgi_fd = -1;
+    peer->http_task = NULL;
+    peer->cgi_executor = NULL;
     reset_sending_buff(peer);
     reset_receiving_buff(peer);
     return 0;

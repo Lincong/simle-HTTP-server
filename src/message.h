@@ -81,6 +81,10 @@ typedef struct CGI_param {
     char* envp[CGI_ENVP_LEN];
 } CGI_param;
 
+CGI_param *init_CGI_param();
+void free_CGI_param(CGI_param*);
+
+
 typedef struct CGI_executor {
     int clientfd;
     int stdin_pipe[2];    /* { write data --> stdin_pipe[1] } -> { stdin_pipe[0] --> stdin } */
@@ -89,6 +93,7 @@ typedef struct CGI_executor {
     CGI_param* cgi_parameter;
 } CGI_executor;
 
+void free_CGI_executor(CGI_executor *executor);
 // peer -------------------------------------------------------------------------
 
 typedef struct {
