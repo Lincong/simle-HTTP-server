@@ -11,7 +11,7 @@
 #define USAGE "\nLiso Server Usage: ./lisod <HTTP port> <log file> <www folder>\n"
 
 int http_port;
-//int https_port;
+int https_port;
 char *WWW_DIR;
 
 int http_sock_fd; // a file descriptor for our "listening" socket.
@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
     fd_set except_fds;
     struct timeval timeout;
     timeout.tv_sec = 0;
-    timeout.tv_usec = 2000;
+//    timeout.tv_usec = 2000;
 
     int high_sock = http_sock_fd;
 
@@ -80,9 +80,8 @@ int main(int argc, char* argv[])
                 perror("select()");
                 server_shutdown_properly(EXIT_FAILURE);
 
-            case 0:
+            case 0: // timeout
                 fprintf(stderr, "select() returns 0.\n");
-                // server_shutdown_properly(EXIT_FAILURE);
 
             default:
 
@@ -186,43 +185,12 @@ int main(int argc, char* argv[])
                                 SERVER_LOG("[ERROR] Can not get CGI executor to read from on client %d", curr_client->socket);
                                 assert(false);
                             }
-                            // add stdin of the child process
-//                            executor->stdin_pipe[0];
-//                            add_cgi_fd_to_pool(connection_list[i].socket, executor->stdout_pipe[0], CGI_FOR_READ);
                         }
                     }
                 }
         }
     }
     return EXIT_SUCCESS;
-}
-
-void add_cgi_fd_to_pool(int clientfd, int cgi_fd, client_cgi_state state) {
-    int i;
-    peer_t client;
-    for (i = 0; i < MAX_CLIENTS; i++) {
-        client = connection_list[i];
-        if (client.cgi_fd == -1) {
-
-            /* Update global data */
-            FD_SET(cgi_fd, );
-            p->maxfd = MAX(cgi_fd, p->maxfd);
-            p->maxi = MAX(i, p->maxi);
-
-            /* Update client data */
-            p->client_fd[i] = cgi_fd;
-            p->state[i] = state;
-
-            /* CGI */
-            p->cgi_client[i] = clientfd;
-            break;
-        }
-    }
-    if (i == MAX_CLIENTS) {
-        /* Coundn't find available slot in pool */
-        SERVER_LOG("%s", "No available slot for new cgi process fd")
-        assert(false);
-    }
 }
 
 void server_shutdown_properly(int code)
@@ -244,7 +212,7 @@ int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *
     int i;
 //
 //    FD_ZERO(read_fds);
-////    FD_SET(STDIN_FILENO, read_fds);
+//    FD_SET(STDIN_FILENO, read_fds);
 //    FD_SET(listen_sock, read_fds);
 //    for (i = 0; i < MAX_CLIENTS; ++i)
 //        if (connection_list[i].socket != NO_SOCKET)
@@ -264,8 +232,10 @@ int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *
 
     //
     FD_ZERO(read_fds);
+    FD_SET(listen_sock, read_fds);
     FD_ZERO(write_fds);
     FD_ZERO(except_fds);
+    FD_SET(listen_sock, except_fds);
     for (i = 0; i < MAX_CLIENTS; i++) {
         if (connection_list[i].socket != NO_SOCKET) {
             FD_SET(connection_list[i].socket, read_fds);
