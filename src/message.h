@@ -111,6 +111,8 @@ int create_peer(peer_t *peer);
 int delete_peer(peer_t *peer);
 char *peer_get_addres_str(peer_t *peer);
 
+int send_to_CGI_process(peer_t* client, int cgi_write_fd);
+int pipe_from_CGI_process_to_client(peer_t* client, int cgi_read_fd);
 // Receive message from peer and handle it with message_handler().
 int receive_from_peer(peer_t *peer, int (*message_handler)(peer_t *));
 // Send message from peer and empty its sending buffer

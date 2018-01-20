@@ -297,6 +297,61 @@ char *peer_get_addres_str(peer_t *peer)
     return ret;
 }
 
+int send_to_CGI_process(peer_t* client, int cgi_write_fd)
+{
+    // check if client CGI buffer has any data to send (only POST CGI request does)
+    cbuf_t* cgi_buf = client->cgi_executor->cgi_buffer;
+    size_t buf_bytes_cnt = cgi_buf->num_byte;
+    if(buf_bytes_cnt == 0)
+        return EXIT_SUCCESS; // nothing to send
+
+    ssize_t sent_bytes_cnt;
+    COMM_LOG("In send_to_CGI_process, trying to send %d bytes", buf_bytes_cnt)
+    // read all bytes in the buffer into the temp buffer
+    uint8_t data[buf_bytes_cnt];
+    buf_read(cgi_buf, data, buf_bytes_cnt);
+    sent_bytes_cnt = write(cgi_write_fd, (uint8_t *)data, buf_bytes_cnt);
+    if (sent_bytes_cnt < 0) {
+        COMM_LOG("%s", "Write to cgi_write_fd failed")
+        return EXIT_FAILURE;
+    }
+    // sent_bytes_cnt >= 0
+    COMM_LOG("%d bytes are actually written to the child process", sent_bytes_cnt)
+    // write the unsent bytes back to the sending buffer
+    while(sent_bytes_cnt < buf_bytes_cnt){
+        assert( buf_putback(cgi_buf) != EXIT_FAILURE);
+        sent_bytes_cnt++;
+    }
+    COMM_LOG("%s", "send_to_CGI_process returns EXIT_SUCCESS")
+    return EXIT_SUCCESS;
+}
+
+
+int pipe_from_CGI_process_to_client(peer_t* client, int cgi_read_fd)
+{
+    // trying to read from the CGI fd and write these data to the sending buffer of the client
+
+    // get the number of available byte space in the client sending buffer
+    cbuf_t* sending_buf = &client->sending_buffer;
+    size_t sending_bytes_cap = buf_available(sending_buf);
+    if (sending_bytes_cap == 0) // no space in the sending buffer
+        return EXIT_SUCCESS;
+
+    // read at most sending_bytes_cap bytes from the CGI child process into the temp buffer
+    uint8_t data[sending_bytes_cap];
+    ssize_t bytes_read_from_CGI_process = read(cgi_read_fd, (uint8_t*) data, sending_bytes_cap);
+    if (bytes_read_from_CGI_process < 0) {
+        COMM_LOG("%s", "Read from cgi_read_fd failed")
+        return EXIT_FAILURE;
+    }
+    int i;
+    for(i = 0; i < bytes_read_from_CGI_process; i ++) {
+        buf_put(sending_buf, data[i]);
+    }
+    COMM_LOG("%s", "pipe_from_CGI_process_to_client returns EXIT_SUCCESS")
+    return EXIT_SUCCESS;
+}
+
 // Receive message from peer and handle it with message_handler(). The message handler is responsible
 // for adjusting parameters of the receiving buffer
 // Depends on how much buffer available, receive only once
@@ -363,7 +418,6 @@ int send_to_peer(peer_t *peer)
         }
         return NOTHING_TO_SEND;
     }
-    COMM_LOG("# of bytes in sending_buffer is: %d", buf_bytes_cnt)
     uint8_t data[buf_bytes_cnt];
     buf_bytes_cnt = read_from_sending_buffer(peer, data, buf_bytes_cnt);
     COMM_LOG("Let's try to send() %zd bytes...", buf_bytes_cnt)
@@ -399,7 +453,7 @@ int send_to_peer(peer_t *peer)
         return EXIT_FAILURE; // tell the caller to close the connection
     }
     COMM_LOG("%s", "send_to_peer returns EXIT_SUCCESS")
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 /*

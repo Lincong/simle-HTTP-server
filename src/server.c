@@ -55,14 +55,22 @@ int main(int argc, char* argv[])
     bool has_read;
     bool has_sent;
     peer_t* curr_client;
+    int cgi_fd;
     // loop waiting for input and then write it back
     while (1)
     {
         build_fd_sets(http_sock_fd, &read_fds, &write_fds, &except_fds);
         high_sock = http_sock_fd;
+
+        // get the highest file descriptor
         for (i = 0; i < MAX_CLIENTS; ++i) {
             if (connection_list[i].socket > high_sock)
                 high_sock = connection_list[i].socket;
+
+            if (connection_list[i].cgi_executor != NULL) {
+                high_sock = MAX(connection_list[i].cgi_executor->stdin_pipe[1], high_sock);
+                high_sock = MAX(connection_list[i].cgi_executor->stdout_pipe[0], high_sock);
+            }
         }
 //        SERVER_LOG("%s", "Selecting...")
         int activity = select(high_sock + 1, &read_fds, &write_fds, &except_fds, NULL); // &timeout); //  NULL);
@@ -95,8 +103,33 @@ int main(int argc, char* argv[])
                 for (i = 0; i < MAX_CLIENTS; ++i) {
                     has_read = false;
                     has_sent = false;
-                        curr_client = &(connection_list[i]);
-                        if (curr_client->socket != NO_SOCKET &&
+                    curr_client = &(connection_list[i]);
+
+                    if (curr_client->cgi_executor != NULL) {
+                        cgi_fd = curr_client->cgi_executor->stdin_pipe[1];
+                        // client can send data from its CGI buffer to its child CGI process
+                        int ret;
+                        if (FD_ISSET(cgi_fd, &write_fds)) {
+                            ret = send_to_CGI_process(curr_client, cgi_fd);
+                            if (ret == EXIT_FAILURE) {
+                                SERVER_LOG("%s", "send_to_CGI_process failed. closing connection...")
+                                close_client_connection(curr_client);
+                            }
+                        }
+
+                        cgi_fd = curr_client->cgi_executor->stdout_pipe[0];
+                        // client can receive data from its child CGI process and write it to its sending buffer
+                        if (FD_ISSET(cgi_fd, &read_fds)) {
+                            ret = pipe_from_CGI_process_to_client(curr_client, cgi_fd);
+                            if (ret == EXIT_FAILURE) {
+                                SERVER_LOG("%s", "pipe_from_CGI_process_to_client failed. closing connection...")
+                                close_client_connection(curr_client);
+                            }
+                        }
+                    }
+
+                    // there are date from the TCP port for this client to read into its receiving buffer
+                    if (curr_client->socket != NO_SOCKET &&
                         FD_ISSET(curr_client->socket, &read_fds)) {
                         if (receive_from_peer(curr_client, &echo_received_message) != EXIT_SUCCESS) {
                             close_client_connection(curr_client);
@@ -106,6 +139,7 @@ int main(int argc, char* argv[])
                         }
                     }
 
+                    // the TCP port is ready to send data out from the sending buffer of the client
                     if (curr_client->socket != NO_SOCKET &&
                         FD_ISSET(curr_client->socket, &write_fds)){ //&& !buf_empty(&connection_list[i].sending_buffer) )) {
                         int ret = send_to_peer(curr_client); // sending bytes in the sending buffer to clients
