@@ -35,7 +35,7 @@ int buf_read(cbuf_t * cbuf, uint8_t * data, size_t num_bytes);
 int buf_write(cbuf_t * cbuf, uint8_t * data, size_t num_bytes);
 bool buf_empty(cbuf_t* cbuf);
 bool buf_full(cbuf_t* cbuf);
-
+void free_buf(cbuf_t* cbuf);
 
 // http_task --------------------------------------------------------------------
 
@@ -93,6 +93,7 @@ typedef struct CGI_executor {
     CGI_param* cgi_parameter;
 } CGI_executor;
 
+CGI_executor* init_CGI_executor();
 void free_CGI_executor(CGI_executor *executor);
 // peer -------------------------------------------------------------------------
 

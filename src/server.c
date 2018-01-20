@@ -11,7 +11,7 @@
 #define USAGE "\nLiso Server Usage: ./lisod <HTTP port> <log file> <www folder>\n"
 
 int http_port;
-int https_port;
+//int https_port;
 char *WWW_DIR;
 
 int http_sock_fd; // a file descriptor for our "listening" socket.
@@ -54,6 +54,7 @@ int main(int argc, char* argv[])
 
     bool has_read;
     bool has_sent;
+    peer_t* curr_client;
     // loop waiting for input and then write it back
     while (1)
     {
@@ -94,21 +95,22 @@ int main(int argc, char* argv[])
                 for (i = 0; i < MAX_CLIENTS; ++i) {
                     has_read = false;
                     has_sent = false;
-                    if (connection_list[i].socket != NO_SOCKET &&
-                        FD_ISSET(connection_list[i].socket, &read_fds)) {
-                        if (receive_from_peer(&connection_list[i], &echo_received_message) != EXIT_SUCCESS) {
-                            close_client_connection(&connection_list[i]);
+                        curr_client = &(connection_list[i]);
+                        if (curr_client->socket != NO_SOCKET &&
+                        FD_ISSET(curr_client->socket, &read_fds)) {
+                        if (receive_from_peer(curr_client, &echo_received_message) != EXIT_SUCCESS) {
+                            close_client_connection(curr_client);
                             continue;
                         }else{
                             has_read = true;
                         }
                     }
 
-                    if (connection_list[i].socket != NO_SOCKET &&
-                        FD_ISSET(connection_list[i].socket, &write_fds)){ //&& !buf_empty(&connection_list[i].sending_buffer) )) {
-                        int ret = send_to_peer(&connection_list[i]); // sending bytes in the sending buffer to clients
+                    if (curr_client->socket != NO_SOCKET &&
+                        FD_ISSET(curr_client->socket, &write_fds)){ //&& !buf_empty(&connection_list[i].sending_buffer) )) {
+                        int ret = send_to_peer(curr_client); // sending bytes in the sending buffer to clients
                         if (ret == EXIT_FAILURE) {
-                            close_client_connection(&connection_list[i]);
+                            close_client_connection(curr_client);
                             continue;
 
                         } else if(ret == EXIT_SUCCESS) {
@@ -118,34 +120,34 @@ int main(int argc, char* argv[])
                     }
 
                     if (connection_list[i].socket != NO_SOCKET &&
-                        FD_ISSET(connection_list[i].socket, &except_fds)) {
+                        FD_ISSET(curr_client->socket, &except_fds)) {
                         SERVER_LOG("%s", "Exception client fd.")
-                        close_client_connection(&connection_list[i]);
+                        close_client_connection(curr_client);
                         continue;
                     }
 
                     // handle HTTP
                     if(has_read || has_sent) {
-                        int ret = handle_http(&connection_list[i]); // actually handle HTTP
+                        int ret = handle_http(curr_client); // actually handle HTTP
                         if(ret == CLOSE_CONN_IMMEDIATELY){
                             SERVER_LOG("Close connection %d", i)
-                            close_client_connection(&connection_list[i]);
+                            close_client_connection(curr_client);
 
                         } else if(ret == CLOSE_CONN){
-                            connection_list[i].close_conn = true;
+                            curr_client->close_conn = true;
 
                         } else if(ret == CGI_READY_FOR_WRITE) {
-                            connection_list[i].http_task->is_waiting_for_CGI_sending = true;
-                            CGI_executor* executor = get_CGI_executor_by_client(connection_list[i].socket);
+                            curr_client->http_task->is_waiting_for_CGI_sending = true;
+                            CGI_executor* executor = curr_client->cgi_executor;
                             if (executor == NULL){
                                 SERVER_LOG("[ERROR] Can not get CGI executor to write to on client %d", connection_list[i].socket)
                                 assert(false);
                             }
-                            add_cgi_fd_to_pool(connection_list[i].socket, executor->stdin_pipe[1], CGI_FOR_WRITE);
-
+//                            add_cgi_fd_to_pool(curr_client->socket, executor->stdin_pipe[1], CGI_FOR_WRITE);
+                                // TODO
                         } else if(ret == CGI_READY_FOR_READ) {
                             connection_list[i].http_task->is_waiting_for_CGI_sending = true;
-                            CGI_executor* executor = get_CGI_executor_by_client(connection_list[i].socket);
+                            CGI_executor* executor = curr_client->cgi_executor;
                             if (executor == NULL) {
                                 SERVER_LOG("[ERROR] Can not get CGI executor to read from on client %d", connection_list[i].socket);
                                 assert(false);

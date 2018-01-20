@@ -130,6 +130,13 @@ void print_message(uint8_t* msg, size_t len)
     printf("\n");
 }
 
+void free_buf(cbuf_t* cbuf)
+{
+    if (cbuf != NULL) {
+        free(cbuf);
+        cbuf = NULL;
+    }
+}
 
 /*
   _     _____ _____ ____    _____  _    ____  _  __
@@ -188,17 +195,30 @@ void reset_http_task(http_task_t* http_task)
   \_____\_____|_____|
 
 */
+CGI_executor* init_CGI_executor()
+{
+    CGI_executor* new_cgi_executor = (CGI_executor*) malloc(sizeof(CGI_executor));
+    new_cgi_executor->cgi_buffer = NULL;
+    new_cgi_executor->cgi_parameter = NULL;
+}
 
-void free_CGI_executor(CGI_executor *executor) {
-    free(executor->cgi_buffer);
-    free_CGI_param(executor->cgi_parameter);
+void free_CGI_executor(CGI_executor *executor)
+{
+    if(executor->cgi_buffer != NULL)
+        free(executor->cgi_buffer);
+
+    if(executor->cgi_parameter != NULL)
+        free_CGI_param(executor->cgi_parameter);
+
     free(executor);
 }
 
-void free_CGI_param(CGI_param *param) {
+void free_CGI_param(CGI_param *param)
+{
     int i = 0;
     while (param->envp[i] != NULL) {
         free(param->envp[i]);
+        free(param->args[i]);
         i++;
     }
     free(param);

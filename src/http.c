@@ -49,7 +49,7 @@ void print_executor(CGI_executor *);
 void* get_in_addr(sockaddr *sa);
 
 void execve_error_handler();
-void handle_dynamic_request(peer_t* client, CGI_param *cgi_parameter, char *post_body, size_t content_length);
+void start_CGI_script(peer_t* client, CGI_param *cgi_parameter, char *post_body, size_t content_length);
 
 /*
   _   _ _____ _____ ____    ____                            _     _                     _ _
@@ -227,13 +227,13 @@ int handle_http(peer_t *peer) {
 
                 if (!strcmp(request->http_method, "POST")) {
                     if (curr_task->body_bytes_num > 0) {
-                        handle_dynamic_request(peer, cgi_parameters, curr_task->post_body, (size_t)curr_task->body_bytes_num);
+                        start_CGI_script(peer, cgi_parameters, curr_task->post_body, (size_t)curr_task->body_bytes_num);
                         return CGI_READY_FOR_WRITE;
                     }
                 }
 
                 // handle CGI for GET and HEAD
-                handle_dynamic_request(peer, cgi_parameters, NULL, 0);
+                start_CGI_script(peer, cgi_parameters, NULL, 0);
                 return CGI_READY_FOR_READ; // since args are sent to the child process via env variables, we can just read from it
 
             } else { // static content
@@ -683,7 +683,6 @@ void build_CGI_param(CGI_param *param, Request *request, host_and_port hap) {
     set_envp_field_by_str("REQUEST_URI", request->http_uri, buf, param, index++);
     set_envp_field_by_str("SCRIPT_NAME", "/cgi", buf, param, index++);
 
-
     char path_info[512];
     memset(path_info, 0, 512);
     char query_string[512];
@@ -896,37 +895,26 @@ void execve_error_handler() {
     }
 }
 
-void handle_dynamic_request(peer_t* client, CGI_param *cgi_parameter, char *post_body, size_t content_length) {
-//    int slot = 0;
-//    for (; slot < FD_SETSIZE; slot++) {
-//        if (cgi_pool->executors[slot] == NULL) {
-//            cgi_pool->executors[slot] = (CGI_executor *) malloc(sizeof(CGI_executor));
-//            cgi_pool->executors[slot]->cgi_parameter = cgi_parameter;
-//            cgi_pool->executors[slot]->client = client;
-//            cgi_pool->executors[slot]->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
-//            if (content_length > 0) {
-//                // Message body, have to write to CGI process */
-//                // append_content_dbuffer(cgi_pool->executors[slot]->cgi_buffer, post_body, content_length);
-//                buf_write(cgi_pool->executors[slot]->cgi_buffer, post_body, content_length);
-//            }
-//            break;
-//        }
-//    }
-//
-//    if (slot == FD_SETSIZE) {
-//        CGI_LOG("%s ", "[Fatal] No available space for more cgi executors")
-//        assert(false);
-//    }
+void start_CGI_script(peer_t* client, CGI_param *cgi_parameter, char *post_body, size_t content_length) {
 
-    client->cgi_executor
+    CGI_LOG("%s", "In handle_dynamic_request(), creating new cgi_executor")
+    assert(client->cgi_executor == NULL); // the cgi_executor should be NULL at this point
+    client->cgi_executor = init_CGI_executor();
+    if (content_length > 0) {
+        client->cgi_executor->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
+        buf_write(client->cgi_executor->cgi_buffer, post_body, content_length);
+    }
+    client->cgi_executor->cgi_parameter = cgi_parameter;
+    CGI_LOG("%s", "Creating new cgi_executor is done")
+
     pid_t pid;
     // pipe(int[2]):  if successful, the array will contain two new file descriptors to be used for the pipeline
-    if (pipe(cgi_pool->executors[slot]->stdin_pipe) < 0) {
+    if (pipe(client->cgi_executor->stdin_pipe) < 0) {
         CGI_LOG("[Fatal] Error piping for stdin for cliend %d", client->socket)
         assert(false);
     }
 
-    if (pipe(cgi_pool->executors[slot]->stdout_pipe) < 0) {
+    if (pipe(client->cgi_executor->stdout_pipe) < 0) {
         CGI_LOG("[Fatal] Error piping for stdin for cliend %d", client->socket)
         assert(false);
     }
@@ -938,15 +926,15 @@ void handle_dynamic_request(peer_t* client, CGI_param *cgi_parameter, char *post
     }
 
     if (pid == 0) {     /* Child CGI process */
-        close(cgi_pool->executors[slot]->stdout_pipe[0]);
-        close(cgi_pool->executors[slot]->stdin_pipe[1]);
-        dup2(cgi_pool->executors[slot]->stdout_pipe[1], fileno(stdout));
-        dup2(cgi_pool->executors[slot]->stdin_pipe[0], fileno(stdin));
+        close(client->cgi_executor->stdout_pipe[0]);
+        dup2(client->cgi_executor->stdout_pipe[1], fileno(stdout)); // for write
+        close(client->cgi_executor->stdin_pipe[1]);
+        dup2(client->cgi_executor->stdin_pipe[0], fileno(stdin)); // for read
 
         /* Execute CGI Script */
-        if (execve(cgi_pool->executors[slot]->cgi_parameter->filename,
-                   cgi_pool->executors[slot]->cgi_parameter->args,
-                   cgi_pool->executors[slot]->cgi_parameter->envp)) {
+        if (execve(client->cgi_executor->cgi_parameter->filename,
+                   client->cgi_executor->cgi_parameter->args,
+                   client->cgi_executor->cgi_parameter->envp)) {
             execve_error_handler();
             CGI_LOG("[Fatal] Error executing CGI script for cliend %d", client->socket)
             assert(false);
@@ -954,8 +942,10 @@ void handle_dynamic_request(peer_t* client, CGI_param *cgi_parameter, char *post
     }
 
     if (pid > 0) {
-        close(cgi_pool->executors[slot]->stdout_pipe[1]);
-        close(cgi_pool->executors[slot]->stdin_pipe[0]);
+        // parent process write to stdin_pipe[1] to send bytes to child process
+        // parent process read from stdout_pipe[0] to receive bytes to child process
+        close(client->cgi_executor->stdout_pipe[1]);
+        close(client->cgi_executor->stdin_pipe[0]);
     }
 }
 
