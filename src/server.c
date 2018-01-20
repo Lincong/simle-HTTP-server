@@ -177,7 +177,6 @@ int main(int argc, char* argv[])
                                 assert(false);
                             }
 //                            add_cgi_fd_to_pool(curr_client->socket, executor->stdin_pipe[1], CGI_FOR_WRITE);
-                                // TODO
                         } else if(ret == CGI_READY_FOR_READ) {
                             curr_client->http_task->is_waiting_for_CGI_sending = true;
                             CGI_executor* executor = curr_client->cgi_executor;

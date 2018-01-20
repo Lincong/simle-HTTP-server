@@ -301,7 +301,7 @@ int send_to_CGI_process(peer_t* client, int cgi_write_fd)
         return EXIT_SUCCESS; // nothing to send
 
     ssize_t sent_bytes_cnt;
-    COMM_LOG("In send_to_CGI_process, trying to send %d bytes", buf_bytes_cnt)
+    COMM_LOG("In send_to_CGI_process, trying to send %zu bytes", buf_bytes_cnt)
     // read all bytes in the buffer into the temp buffer
     uint8_t data[buf_bytes_cnt];
     buf_read(cgi_buf, data, buf_bytes_cnt);

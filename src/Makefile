@@ -20,8 +20,7 @@ PARSE_DIR=parser
 PARSER_DEPS = $(PARSE_DIR)/parse.h $(PARSE_DIR)/y.tab.h
 
 CC=gcc
-CFLAGS=-Wall
-
+#CFLAGS=-Wall
 # add server objects
 OBJ=$(OBJ_DIR)/server.o
 OBJ+=$(OBJ_DIR)/utility.o
