@@ -108,7 +108,6 @@ typedef struct {
 } peer_t;
 
 int create_peer(peer_t *peer);
-int delete_peer(peer_t *peer);
 char *peer_get_addres_str(peer_t *peer);
 
 int send_to_CGI_process(peer_t* client, int cgi_write_fd);

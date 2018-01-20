@@ -200,8 +200,9 @@ void server_shutdown_properly(int code)
     close(http_sock_fd);
 
     for (i = 0; i < MAX_CLIENTS; ++i) {
-        if (connection_list[i].socket != NO_SOCKET)
-            delete_peer(&connection_list[i]); // de-allocate memory for each peer
+        if (connection_list[i].socket != NO_SOCKET) {
+            close_client_connection(&connection_list[i]);
+        }
     }
     printf("Shutdown server properly.\n");
     exit(code);

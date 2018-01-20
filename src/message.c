@@ -204,11 +204,15 @@ CGI_executor* init_CGI_executor()
 
 void free_CGI_executor(CGI_executor *executor)
 {
-    if(executor->cgi_buffer != NULL)
+    if(executor->cgi_buffer != NULL) {
         free(executor->cgi_buffer);
+        executor->cgi_buffer = NULL;
+    }
 
-    if(executor->cgi_parameter != NULL)
+    if(executor->cgi_parameter != NULL) {
         free_CGI_param(executor->cgi_parameter);
+        executor->cgi_parameter = NULL;
+    }
 
     free(executor);
 }
@@ -231,15 +235,6 @@ void free_CGI_param(CGI_param *param)
  | |
  |_|
 */
-int delete_peer(peer_t *peer)
-{
-    close(peer->socket);
-    destroy_http_task(peer->http_task);
-    if (peer->cgi_executor != NULL)
-        free_CGI_executor(peer->cgi_executor);
-    peer->cgi_executor = NULL;
-    return 0;
-}
 
 int create_peer(peer_t *peer)
 {
@@ -517,5 +512,6 @@ int close_client_connection(peer_t *client)
     reset_sending_buff(client);
     reset_receiving_buff(client);
     destroy_http_task(client->http_task);
+    free_CGI_executor(client->cgi_executor);
     return 0;
 }
