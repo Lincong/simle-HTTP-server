@@ -235,7 +235,9 @@ int delete_peer(peer_t *peer)
 {
     close(peer->socket);
     destroy_http_task(peer->http_task);
-
+    if (peer->cgi_executor != NULL)
+        free_CGI_executor(peer->cgi_executor);
+    peer->cgi_executor = NULL;
     return 0;
 }
 

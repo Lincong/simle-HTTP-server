@@ -277,6 +277,7 @@ int handle_http(peer_t *peer) {
 
         }
     }
+    free_request(request);
     reset_http_task(curr_task);
     return (curr_task->last_request ? CLOSE_CONN : KEEP_CONN);
 }

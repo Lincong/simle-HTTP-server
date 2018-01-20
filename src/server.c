@@ -140,20 +140,20 @@ int main(int argc, char* argv[])
                             curr_client->http_task->is_waiting_for_CGI_sending = true;
                             CGI_executor* executor = curr_client->cgi_executor;
                             if (executor == NULL){
-                                SERVER_LOG("[ERROR] Can not get CGI executor to write to on client %d", connection_list[i].socket)
+                                SERVER_LOG("[ERROR] Can not get CGI executor to write to on client %d", curr_client->socket)
                                 assert(false);
                             }
 //                            add_cgi_fd_to_pool(curr_client->socket, executor->stdin_pipe[1], CGI_FOR_WRITE);
                                 // TODO
                         } else if(ret == CGI_READY_FOR_READ) {
-                            connection_list[i].http_task->is_waiting_for_CGI_sending = true;
+                            curr_client->http_task->is_waiting_for_CGI_sending = true;
                             CGI_executor* executor = curr_client->cgi_executor;
                             if (executor == NULL) {
-                                SERVER_LOG("[ERROR] Can not get CGI executor to read from on client %d", connection_list[i].socket);
+                                SERVER_LOG("[ERROR] Can not get CGI executor to read from on client %d", curr_client->socket);
                                 assert(false);
                             }
                             // add stdin of the child process
-                            executor->stdin_pipe[0]
+//                            executor->stdin_pipe[0];
 //                            add_cgi_fd_to_pool(connection_list[i].socket, executor->stdout_pipe[0], CGI_FOR_READ);
                         }
                     }
@@ -208,25 +208,40 @@ void server_shutdown_properly(int code)
 int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
 {
     int i;
+//
+//    FD_ZERO(read_fds);
+////    FD_SET(STDIN_FILENO, read_fds);
+//    FD_SET(listen_sock, read_fds);
+//    for (i = 0; i < MAX_CLIENTS; ++i)
+//        if (connection_list[i].socket != NO_SOCKET)
+//            FD_SET(connection_list[i].socket, read_fds);
+//
+//    FD_ZERO(write_fds);
+//    for (i = 0; i < MAX_CLIENTS; ++i)
+//        if (connection_list[i].socket != NO_SOCKET) // !buf_empty(&connection_list[i].sending_buffer))
+//            FD_SET(connection_list[i].socket, write_fds);
+//
+//    FD_ZERO(except_fds);
+//    FD_SET(STDIN_FILENO, except_fds);
+//    FD_SET(listen_sock, except_fds);
+//    for (i = 0; i < MAX_CLIENTS; ++i)
+//        if (connection_list[i].socket != NO_SOCKET)
+//            FD_SET(connection_list[i].socket, except_fds);
 
+    //
     FD_ZERO(read_fds);
-    FD_SET(STDIN_FILENO, read_fds);
-    FD_SET(listen_sock, read_fds);
-    for (i = 0; i < MAX_CLIENTS; ++i)
-        if (connection_list[i].socket != NO_SOCKET)
-            FD_SET(connection_list[i].socket, read_fds);
-
     FD_ZERO(write_fds);
-    for (i = 0; i < MAX_CLIENTS; ++i)
-        if (connection_list[i].socket != NO_SOCKET) // !buf_empty(&connection_list[i].sending_buffer))
-            FD_SET(connection_list[i].socket, write_fds);
-
     FD_ZERO(except_fds);
-    FD_SET(STDIN_FILENO, except_fds);
-    FD_SET(listen_sock, except_fds);
-    for (i = 0; i < MAX_CLIENTS; ++i)
-        if (connection_list[i].socket != NO_SOCKET)
-            FD_SET(connection_list[i].socket, except_fds);
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        if (connection_list[i].socket != NO_SOCKET) {
+            FD_SET(connection_list[i].socket, read_fds);
+            FD_SET(connection_list[i].socket, write_fds);
+            if (connection_list[i].cgi_executor != NULL) {
+                FD_SET(connection_list[i].cgi_executor->stdin_pipe[1], write_fds);
+                FD_SET(connection_list[i].cgi_executor->stdout_pipe[0], read_fds);
+            }
+        }
+    }
 
     return 0;
 }
