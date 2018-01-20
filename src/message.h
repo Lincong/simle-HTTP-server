@@ -37,7 +37,7 @@ bool buf_empty(cbuf_t* cbuf);
 bool buf_full(cbuf_t* cbuf);
 
 
-// http_task
+// http_task --------------------------------------------------------------------
 
 typedef struct {
     int state;
@@ -49,7 +49,11 @@ typedef struct {
     bool is_waiting_for_CGI_sending; // when the sending buffer is empty, check it and "last_request" to determine if close the connection
     bool last_request;
     int response_code;
+    // POST body parameters
     size_t body_bytes_num;
+    char* post_body;
+    int post_body_idx;
+
     FILE * fp;           // use fgetc() to get one byte at a time
 } http_task_t;
 
@@ -57,12 +61,41 @@ http_task_t* create_http_task();
 void destroy_http_task(http_task_t* http_task);
 void reset_http_task(http_task_t* http_task);
 
-// peer -----------------------------------------------------------------------
+
+// CGI executor -----------------------------------------------------------------
+
+/* CGI */
+#define CGI_ARGS_LEN 2
+#define CGI_ENVP_LEN 22
+#define CGI_ENVP_INFO_MAXLEN 1024
+
+typedef struct host_and_port {
+    char *host;
+    int port;
+} host_and_port;
+
+/* CGI related parameters */
+typedef struct CGI_param {
+    char * filename;
+    char* args[CGI_ARGS_LEN];
+    char* envp[CGI_ENVP_LEN];
+} CGI_param;
+
+typedef struct CGI_executor {
+    int clientfd;
+    int stdin_pipe[2];    /* { write data --> stdin_pipe[1] } -> { stdin_pipe[0] --> stdin } */
+    int stdout_pipe[2];   /* { read data <--  stdout_pipe[0] } <-- {stdout_pipe[1] <-- stdout } */
+    cbuf_t* cgi_buffer;
+    CGI_param* cgi_parameter;
+} CGI_executor;
+
+// peer -------------------------------------------------------------------------
 
 typedef struct {
     int socket;
     struct sockaddr_in addres;
     http_task_t* http_task;
+    CGI_executor* cgi_executor;
     cbuf_t sending_buffer;   // data in the outgoing buffer
     cbuf_t receiving_buffer;
     bool close_conn;

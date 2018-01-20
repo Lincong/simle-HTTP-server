@@ -147,14 +147,18 @@ http_task_t* create_http_task()
         fprintf(stderr, "malloc() fails! This is bad...");
         assert(false);
     }
+    new_task->post_body = NULL;
     reset_http_task(new_task);
     return new_task;
 }
 
 void destroy_http_task(http_task_t* http_task)
 {
-    if(http_task != NULL)
+    if(http_task != NULL) {
+        if (http_task->post_body != NULL)
+            free(http_task->post_body);
         free(http_task);
+    }
 }
 
 void reset_http_task(http_task_t* http_task)
@@ -167,8 +171,12 @@ void reset_http_task(http_task_t* http_task)
     http_task->is_waiting_for_CGI_sending = false;
     http_task->last_request = false;
     http_task->response_code = -1; // no response code
-    http_task->body_bytes_num = 0;
     buf_reset(&http_task->response_buf);
+    http_task->body_bytes_num = 0;
+
+    if (http_task->post_body != NULL)
+        free(http_task->post_body);
+    int post_body_idx = 0;
 }
 /*
  | '_ \ / _ \/ _ \ '__|

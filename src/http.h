@@ -83,33 +83,33 @@ int handle_http(peer_t *peer);
 /* script path from command line */
 char *CGI_scripts;
 
-typedef struct host_and_port {
-    char *host;
-    int port;
-} host_and_port;
+//typedef struct host_and_port {
+//    char *host;
+//    int port;
+//} host_and_port;
 
 /* CGI related parameters */
-typedef struct CGI_param {
-    char * filename;
-    char* args[CGI_ARGS_LEN];
-    char* envp[CGI_ENVP_LEN];
-} CGI_param;
+//typedef struct CGI_param {
+//    char * filename;
+//    char* args[CGI_ARGS_LEN];
+//    char* envp[CGI_ENVP_LEN];
+//} CGI_param;
 
-typedef struct CGI_executor {
-    int clientfd;
-    int stdin_pipe[2];    /* { write data --> stdin_pipe[1] } -> { stdin_pipe[0] --> stdin } */
-    int stdout_pipe[2];   /* { read data <--  stdout_pipe[0] } <-- {stdout_pipe[1] <-- stdout } */
-    cbuf_t* cgi_buffer;
-    CGI_param* cgi_parameter;
-    peer_t* client;
-} CGI_executor;
+//typedef struct CGI_executor {
+//    int clientfd;
+//    int stdin_pipe[2];    /* { write data --> stdin_pipe[1] } -> { stdin_pipe[0] --> stdin } */
+//    int stdout_pipe[2];   /* { read data <--  stdout_pipe[0] } <-- {stdout_pipe[1] <-- stdout } */
+//    cbuf_t* cgi_buffer;
+//    CGI_param* cgi_parameter;
+////    peer_t* client;
+//} CGI_executor;
 
-typedef struct CGI_pool {
-    CGI_executor* executors[FD_SETSIZE];
-} CGI_pool;
+//typedef struct CGI_pool {
+//    CGI_executor* executors[FD_SETSIZE];
+//} CGI_pool;
 
-extern CGI_pool * cgi_pool;
+//extern CGI_pool * cgi_pool;
 //void add_cgi_fd_to_pool(int client_fd, int cgi_fd, client_cgi_state state);
 //void clear_cgi_from_pool(int client_fd);
-CGI_executor *get_CGI_executor_by_client(int client);
+//CGI_executor *get_CGI_executor_by_client(int client);
 #endif //HTTP_H

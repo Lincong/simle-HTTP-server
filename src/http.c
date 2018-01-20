@@ -9,7 +9,6 @@
 #include "file_handlers.h"
 
 extern char *WWW_DIR;
-CGI_pool * cgi_pool;
 
 int read_header_data(peer_t *peer);
 void print_parse_buf(http_task_t* curr_task);
@@ -68,8 +67,6 @@ void handle_dynamic_request(peer_t* client, CGI_param *cgi_parameter, char *post
 */
 
 Request *request;
-char* post_body;
-int post_body_idx;
 
 // This function should not have any state
 int handle_http(peer_t *peer) {
@@ -144,8 +141,8 @@ int handle_http(peer_t *peer) {
                     HTTP_LOG("POST content length: %d", content_len)
                     assert(curr_task->body_bytes_num == 0);
                     curr_task->body_bytes_num = (size_t) content_len;
-                    post_body = (char*) malloc(curr_task->body_bytes_num * sizeof(char));
-                    post_body_idx = 0;
+                    curr_task->post_body = (char*) malloc(curr_task->body_bytes_num * sizeof(char));
+                    curr_task->post_body_idx = 0;
                     curr_task->state = RECV_BODY_STATE; // go to RECV_BODY_STATE
                 }
 
@@ -154,38 +151,6 @@ int handle_http(peer_t *peer) {
                 curr_task->state = GENERATE_HEADER_STATE;
                 free_request(request); // otherwise don't free the request yet
             }
-
-            // do something depending on the method
-//            if(curr_task->method_type == GET_METHOD || curr_task->method_type == HEAD_METHOD) {
-//                curr_task->response_code = generate_GET_header(curr_task, request, curr_task->last_request);
-//                if (curr_task->response_code == OK_NUM) {
-//                    curr_task->state = SEND_HEADER_STATE;
-//
-//                } else {
-//                    curr_task->state = GENERATE_HEADER_STATE;
-//
-//                }
-//            }
-
-
-//            } else { // POST_METHOD
-//
-//                // check Content-Length for POST
-//                char *content_length_str;
-//                content_length_str = get_header_value(request, "Content-Length");
-//                if (strlen(content_length_str) == 0) {
-//                    // go to generate corresponding error header
-//                    curr_task->response_code = LENGTH_REQUIRE_NUM;
-//                    curr_task->state = GENERATE_HEADER_STATE;
-//
-//                } else {
-//                    int content_len = atoi(content_length_str);
-//                    HTTP_LOG("POST content length: %d", content_len)
-//                    assert(curr_task->body_bytes_num == 0);
-//                    curr_task->state = RECV_BODY_STATE; // go to RECV_BODY_STATE
-//                }
-//            }
-//            free_request(request);
 
         } else if (curr_task->state == RECV_BODY_STATE) {
             COMM_LOG("%s", "In RECV_BODY_STATE")
@@ -196,12 +161,11 @@ int handle_http(peer_t *peer) {
                 if (buf_empty(receiving_buffer)) // read from the receiving buffer later
                     return KEEP_CONN;
                 buf_get(receiving_buffer, &data);
-                post_body[post_body_idx] = data;
-                post_body_idx++;
+                curr_task->post_body[curr_task->post_body_idx] = data;
+                curr_task->post_body_idx++;
                 curr_task->body_bytes_num--;
             }
             HTTP_LOG("%s", "Finished receiving body")
-//            curr_task->response_code = OK_NUM;
             curr_task->state = CHECK_CGI; // after receiving POST body, go check if it is a CGI request
 
         } else if (curr_task->state == GENERATE_HEADER_STATE) {
@@ -246,7 +210,6 @@ int handle_http(peer_t *peer) {
         } else if (curr_task->state == CHECK_CGI) {
 
             // TODO
-
             char *cgi_prefix = "/cgi/";
             char prefix[8];
             memset(prefix, 0, 8);
@@ -273,18 +236,12 @@ int handle_http(peer_t *peer) {
                     size_t cl = atoi(get_header_value(request, "Content-Length"));
                     if (cl > 0) {
                         handle_dynamic_request(peer, cgi_parameters, post_body, cl);
-//                        if (curr_task->last_request)
-//                            return CGI_READY_FOR_WRITE_CLOSE;
-//                        else
                         return CGI_READY_FOR_WRITE;
                     }
                 }
 
                 // handle CGI for GET and HEAD
                 handle_dynamic_request(peer, cgi_parameters, NULL, 0);
-//                if (curr_task->last_request)
-//                    return CGI_READY_FOR_READ_CLOSE;
-//                else
                 return CGI_READY_FOR_READ;
 
             } else { // static content
