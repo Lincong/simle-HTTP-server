@@ -9,6 +9,7 @@
 #include "file_handlers.h"
 
 extern char *WWW_DIR;
+extern char *CGI_scripts;
 
 int read_header_data(peer_t *peer);
 void print_parse_buf(http_task_t* curr_task);
@@ -131,12 +132,20 @@ int handle_http(peer_t *peer) {
                 content_length_str = get_header_value(request, "Content-Length");
                 if (strlen(content_length_str) == 0) {
                     // go to generate corresponding error header
+                    HTTP_LOG("%s", "Invalid length #")
                     curr_task->response_code = LENGTH_REQUIRE_NUM;
                     curr_task->state = GENERATE_HEADER_STATE;
 
                 } else {
                     int content_len = atoi(content_length_str);
                     HTTP_LOG("POST content length: %d", content_len)
+                    if (content_len < 0) {
+                        HTTP_LOG("%s", "Invalid length #")
+                        curr_task->response_code = LENGTH_REQUIRE_NUM;
+                        curr_task->state = GENERATE_HEADER_STATE;
+                        continue;
+                    }
+
                     assert(curr_task->body_bytes_num == 0);
                     curr_task->body_bytes_num = (size_t) content_len;
                     curr_task->post_body = (char*) malloc(curr_task->body_bytes_num * sizeof(char));
@@ -285,7 +294,6 @@ int handle_http(peer_t *peer) {
     reset_http_task(curr_task);
     return (curr_task->last_request ? CLOSE_CONN : KEEP_CONN);
 }
-
 
 // HTTP request handler helpers
 
@@ -845,15 +853,18 @@ void execve_error_handler() {
 void start_CGI_script(peer_t* client, CGI_param *cgi_parameter, char *post_body, size_t content_length) {
 
     CGI_LOG("%s", "In handle_dynamic_request(), creating new cgi_executor")
+    CGI_LOG("%s", "Before assert()")
     assert(client->cgi_executor == NULL); // the cgi_executor should be NULL at this point
+    CGI_LOG("%s", "After assert()")
     client->cgi_executor = init_CGI_executor();
-
+    client->cgi_executor->cgi_parameter = cgi_parameter;
+    CGI_LOG("%s", "After init_CGI_executor()")
+    CGI_LOG("content_length: %zu", content_length)
     // write body of the POST request to the CGI buffer
     if (content_length > 0) {
         client->cgi_executor->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
         buf_write(client->cgi_executor->cgi_buffer, (uint8_t*) post_body, content_length);
     }
-    client->cgi_executor->cgi_parameter = cgi_parameter;
     CGI_LOG("%s", "Creating new cgi_executor is done")
 
     pid_t pid;
@@ -868,12 +879,12 @@ void start_CGI_script(peer_t* client, CGI_param *cgi_parameter, char *post_body,
         assert(false);
     }
 
+    CGI_LOG("CGI filename: %s", client->cgi_executor->cgi_parameter->filename)
     pid = fork();
     if (pid < 0) {
         CGI_LOG("[Fatal] Error forking child CGI process for client %d", client->socket)
         assert(false);
     }
-
     if (pid == 0) {     /* Child CGI process */
         close(client->cgi_executor->stdout_pipe[0]);
         dup2(client->cgi_executor->stdout_pipe[1], fileno(stdout)); // for write
@@ -896,6 +907,7 @@ void start_CGI_script(peer_t* client, CGI_param *cgi_parameter, char *post_body,
         close(client->cgi_executor->stdout_pipe[1]);
         close(client->cgi_executor->stdin_pipe[0]);
     }
+    CGI_LOG("%s", "End of start_CGI_script()")
 }
 
 // Get sockaddr, IPv4 or IPv6.

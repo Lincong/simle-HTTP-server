@@ -109,7 +109,7 @@ int buf_write(cbuf_t * cbuf, uint8_t * data, size_t num_bytes)
     // write at most all bytes in data into the buffer
     if(num_bytes > buf_available(cbuf)) {
         num_bytes = buf_available(cbuf);
-        printf("buffer overflow!\n");
+        COMM_LOG("%s", "buffer overflow!")
         return -1;
     }
 
@@ -199,6 +199,7 @@ CGI_executor* init_CGI_executor()
     CGI_executor* new_cgi_executor = (CGI_executor*) malloc(sizeof(CGI_executor));
     new_cgi_executor->cgi_buffer = NULL;
     new_cgi_executor->cgi_parameter = NULL;
+    return new_cgi_executor;
 }
 
 void free_CGI_executor(CGI_executor *executor)
@@ -297,8 +298,9 @@ char *peer_get_addres_str(peer_t *peer)
 int send_to_CGI_process(peer_t* client, int cgi_write_fd)
 {
     // check if client CGI buffer has any data to send (only POST CGI request does)
+
     cbuf_t* cgi_buf = client->cgi_executor->cgi_buffer;
-    if(buf_empty(cgi_buf))
+    if(cgi_buf == NULL || buf_empty(cgi_buf))
         return EXIT_SUCCESS; // nothing to send
 
     size_t buf_bytes_cnt = cgi_buf->num_byte;

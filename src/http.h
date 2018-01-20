@@ -81,7 +81,6 @@ int handle_http(peer_t *peer);
 #define CGI_ENVP_LEN 22
 #define CGI_ENVP_INFO_MAXLEN 1024
 /* script path from command line */
-char *CGI_scripts;
 
 //typedef struct host_and_port {
 //    char *host;
