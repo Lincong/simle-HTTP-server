@@ -54,10 +54,8 @@
 #define CLOSE_CONN 0 // close connection after the sending buffer becomes empty
 #define CLOSE_CONN_IMMEDIATELY 1 // used when some error happened
 #define KEEP_CONN  2
-#define CGI_READY_FOR_READ 3
-#define CGI_READY_FOR_WRITE 4
-#define CGI_READY_FOR_READ_CLOSE 5
-#define CGI_READY_FOR_WRITE_CLOSE 6
+#define DO_CGI 3
+#define DO_LAST_CGI 4
 
 
 // HTTP protocol states
@@ -68,6 +66,7 @@
 #define SEND_BODY_STATE   5
 #define FINISHED_STATE 6
 #define CHECK_CGI 7
+#define PROCESSING_CGI 8
 
 #define DEFAULT_WWW_DIR "/Users/lincongli/Desktop/CSE124/src/www/"
 

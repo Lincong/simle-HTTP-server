@@ -175,7 +175,6 @@ void reset_http_task(http_task_t* http_task)
     http_task->parse_buf_idx = 0;
     http_task->header_term_token_status = 0;
     http_task->method_type = 0; // NO_METHOD
-    http_task->is_waiting_for_CGI_sending = false;
     http_task->last_request = false;
     http_task->response_code = -1; // no response code
     buf_reset(&http_task->response_buf);
@@ -183,7 +182,7 @@ void reset_http_task(http_task_t* http_task)
 
     if (http_task->post_body != NULL)
         free(http_task->post_body);
-    int post_body_idx = 0;
+    http_task->post_body_idx = 0;
 }
 
 /*
@@ -204,6 +203,9 @@ CGI_executor* init_CGI_executor()
 
 void free_CGI_executor(CGI_executor *executor)
 {
+    if(executor == NULL)
+        return;
+
     if(executor->cgi_buffer != NULL) {
         free(executor->cgi_buffer);
         executor->cgi_buffer = NULL;
@@ -296,10 +298,10 @@ int send_to_CGI_process(peer_t* client, int cgi_write_fd)
 {
     // check if client CGI buffer has any data to send (only POST CGI request does)
     cbuf_t* cgi_buf = client->cgi_executor->cgi_buffer;
-    size_t buf_bytes_cnt = cgi_buf->num_byte;
-    if(buf_bytes_cnt == 0)
+    if(buf_empty(cgi_buf))
         return EXIT_SUCCESS; // nothing to send
 
+    size_t buf_bytes_cnt = cgi_buf->num_byte;
     ssize_t sent_bytes_cnt;
     COMM_LOG("In send_to_CGI_process, trying to send %zu bytes", buf_bytes_cnt)
     // read all bytes in the buffer into the temp buffer
@@ -328,10 +330,10 @@ int pipe_from_CGI_process_to_client(peer_t* client, int cgi_read_fd)
 
     // get the number of available byte space in the client sending buffer
     cbuf_t* sending_buf = &client->sending_buffer;
-    size_t sending_bytes_cap = buf_available(sending_buf);
-    if (sending_bytes_cap == 0) // no space in the sending buffer
+    if (buf_full(sending_buf)) // no space in the sending buffer
         return EXIT_SUCCESS;
 
+    size_t sending_bytes_cap = buf_available(sending_buf);
     // read at most sending_bytes_cap bytes from the CGI child process into the temp buffer
     uint8_t data[sending_bytes_cap];
     ssize_t bytes_read_from_CGI_process = read(cgi_read_fd, (uint8_t*) data, sending_bytes_cap);
@@ -339,6 +341,17 @@ int pipe_from_CGI_process_to_client(peer_t* client, int cgi_read_fd)
         COMM_LOG("%s", "Read from cgi_read_fd failed")
         return EXIT_FAILURE;
     }
+
+    if (bytes_read_from_CGI_process == 0) {
+        COMM_LOG("%s", "Finish reading from CGI child process")
+        // next time when handle_http() is called, restart the state machine to deal with the next HTTP request
+        client->http_task->state = FINISHED_STATE;
+        // remove the CGI_executor
+        free_CGI_executor(client->cgi_executor);
+        client->cgi_executor = NULL;
+        return EXIT_SUCCESS;
+    }
+
     int i;
     for(i = 0; i < bytes_read_from_CGI_process; i ++) {
         buf_put(sending_buf, data[i]);
@@ -404,15 +417,13 @@ int send_to_peer(peer_t *peer)
 
     // Count bytes to send.
     cbuf_t* sending_buf = &peer->sending_buffer;
-    buf_bytes_cnt = sending_buf->num_byte;
-    if(buf_bytes_cnt == 0) {
-        // COMM_LOG("%s", "no data in sending buffer")
-        if(peer->close_conn) {
-            // COMM_LOG("%s", "return EXIT_FAILURE")
+    if(buf_empty(sending_buf)) {
+        if(peer->close_conn && peer->http_task->state != PROCESSING_CGI) {
             return EXIT_FAILURE; // tell the caller to close the connection
         }
         return NOTHING_TO_SEND;
     }
+    buf_bytes_cnt = sending_buf->num_byte;
     uint8_t data[buf_bytes_cnt];
     buf_bytes_cnt = read_from_sending_buffer(peer, data, buf_bytes_cnt);
     COMM_LOG("Let's try to send() %zd bytes...", buf_bytes_cnt)

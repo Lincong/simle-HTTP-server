@@ -70,6 +70,11 @@ int handle_http(peer_t *peer) {
         exit(EXIT_FAILURE);
     }
 
+    if(curr_task->state == PROCESSING_CGI) {
+        HTTP_LOG("%s", "CGI child process is busy working on something, do nothing in the hTTP handler")
+        return KEEP_CONN;
+    }
+
     while (curr_task->state != FINISHED_STATE) {
         if (curr_task->state == RECV_HEADER_STATE) {
             // read bytes from receiving buffer into parser buffer
@@ -142,7 +147,6 @@ int handle_http(peer_t *peer) {
             } else {
                 curr_task->response_code = NOT_IMPLEMENTED_NUM;
                 curr_task->state = GENERATE_HEADER_STATE;
-                free_request(request); // otherwise don't free the request yet
             }
 
         } else if (curr_task->state == RECV_BODY_STATE) {
@@ -201,7 +205,6 @@ int handle_http(peer_t *peer) {
 
         } else if (curr_task->state == CHECK_CGI) {
 
-            // TODO
             char *cgi_prefix = "/cgi/";
             char prefix[8];
             memset(prefix, 0, 8);
@@ -209,7 +212,7 @@ int handle_http(peer_t *peer) {
                 snprintf(prefix, strlen(cgi_prefix) + 1, "%s", request->http_uri);
 
             CGI_LOG("prefix: %s", prefix);
-            if (!strcmp(cgi_prefix, prefix)) { // Handle dynamic http request
+            if (!strcmp(cgi_prefix, prefix)) { // Handle dynamic http CGI request
                 CGI_LOG("%s", "It's a CGI request!")
                 CGI_param *cgi_parameters = init_CGI_param();
                 host_and_port has;
@@ -222,16 +225,20 @@ int handle_http(peer_t *peer) {
                 build_CGI_param(cgi_parameters, request, has);
                 print_CGI_param(cgi_parameters);
 
+                curr_task->state = PROCESSING_CGI;
+
                 if (!strcmp(request->http_method, "POST")) {
                     if (curr_task->body_bytes_num > 0) {
+                        // allocate a new CGI_executor
                         start_CGI_script(peer, cgi_parameters, curr_task->post_body, (size_t)curr_task->body_bytes_num);
-                        return CGI_READY_FOR_WRITE;
+                        return (curr_task->last_request ? CLOSE_CONN : KEEP_CONN);
                     }
                 }
 
                 // handle CGI for GET and HEAD
-                start_CGI_script(peer, cgi_parameters, NULL, 0);
-                return CGI_READY_FOR_READ; // since args are sent to the child process via env variables, we can just read from it
+                // allocate a new CGI_executor
+                start_CGI_script(peer, cgi_parameters, NULL, 0); // since args are sent to the child process via env variables, we can just read from it
+                return (curr_task->last_request ? CLOSE_CONN : KEEP_CONN);
 
             } else { // static content
                 CGI_LOG("%s", "It's a static content request!")
@@ -278,6 +285,8 @@ int handle_http(peer_t *peer) {
     reset_http_task(curr_task);
     return (curr_task->last_request ? CLOSE_CONN : KEEP_CONN);
 }
+
+
 // HTTP request handler helpers
 
 // read bytes from receiving buffer of the client to parser buffer of it
@@ -478,6 +487,8 @@ int send_nonbody_reponse(peer_t *peer) {
     cbuf_t *send_buf = &peer->sending_buffer;
     cbuf_t *response_buf = &peer->http_task->response_buf;
     uint8_t data;
+
+    // send byte by byte
     while (!buf_empty(response_buf)) {
         // read one byte from the response buffer
         buf_get(response_buf, &data);
@@ -836,6 +847,8 @@ void start_CGI_script(peer_t* client, CGI_param *cgi_parameter, char *post_body,
     CGI_LOG("%s", "In handle_dynamic_request(), creating new cgi_executor")
     assert(client->cgi_executor == NULL); // the cgi_executor should be NULL at this point
     client->cgi_executor = init_CGI_executor();
+
+    // write body of the POST request to the CGI buffer
     if (content_length > 0) {
         client->cgi_executor->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
         buf_write(client->cgi_executor->cgi_buffer, (uint8_t*) post_body, content_length);

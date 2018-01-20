@@ -166,24 +166,9 @@ int main(int argc, char* argv[])
                             SERVER_LOG("Close connection %d", i)
                             close_client_connection(curr_client);
 
-                        } else if(ret == CLOSE_CONN){
+                        } else if(ret == CLOSE_CONN) {
                             curr_client->close_conn = true;
 
-                        } else if(ret == CGI_READY_FOR_WRITE) {
-                            curr_client->http_task->is_waiting_for_CGI_sending = true;
-                            CGI_executor* executor = curr_client->cgi_executor;
-                            if (executor == NULL){
-                                SERVER_LOG("[ERROR] Can not get CGI executor to write to on client %d", curr_client->socket)
-                                assert(false);
-                            }
-//                            add_cgi_fd_to_pool(curr_client->socket, executor->stdin_pipe[1], CGI_FOR_WRITE);
-                        } else if(ret == CGI_READY_FOR_READ) {
-                            curr_client->http_task->is_waiting_for_CGI_sending = true;
-                            CGI_executor* executor = curr_client->cgi_executor;
-                            if (executor == NULL) {
-                                SERVER_LOG("[ERROR] Can not get CGI executor to read from on client %d", curr_client->socket);
-                                assert(false);
-                            }
                         }
                     }
                 }
