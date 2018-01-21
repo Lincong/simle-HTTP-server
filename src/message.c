@@ -170,7 +170,6 @@ void destroy_http_task(http_task_t* http_task)
 
 void reset_http_task(http_task_t* http_task)
 {
-    HTTP_LOG("%s", "In reset_http_task()")
     if(http_task == NULL) return;
     http_task->state = RECV_HEADER_STATE; // initial state
     http_task->parse_buf_idx = 0;
@@ -186,7 +185,6 @@ void reset_http_task(http_task_t* http_task)
         http_task->post_body = NULL;
     }
     http_task->post_body_idx = 0;
-    HTTP_LOG("%s", "End reset_http_task()")
 }
 
 /*

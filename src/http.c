@@ -34,6 +34,7 @@ bool starts_with(const char *pre, const char *str);
 void remove_redundancy_from_uri(char* uri);
 void free_request(Request* req);
 void make_full_path(char* uri, char* full_path);
+void print_request_body(char* body, int total_bytes_num);
 // CGI
 
 //CGI_param *init_CGI_param();
@@ -64,7 +65,7 @@ Request *request;
 
 // This function should not have any state
 int handle_http(peer_t *peer) {
-    HTTP_LOG("%s", "In HTTP handler!")
+//    HTTP_LOG("%s", "In HTTP handler!")
     http_task_t *curr_task = peer->http_task;
     if (curr_task == NULL) {
         fprintf(stderr, "When handle_http() is called, http_task should have been allocated");
@@ -72,7 +73,7 @@ int handle_http(peer_t *peer) {
     }
 
     if(curr_task->state == PROCESSING_CGI) {
-        HTTP_LOG("%s", "CGI child process is busy working on something, do nothing in the hTTP handler")
+//        HTTP_LOG("%s", "CGI child process is busy working on something, do nothing in the hTTP handler")
         return KEEP_CONN;
     }
 
@@ -860,6 +861,7 @@ void start_CGI_script(peer_t* client, CGI_param *cgi_parameter, char *post_body,
     if (content_length > 0) {
         client->cgi_executor->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
         buf_reset(client->cgi_executor->cgi_buffer);
+        print_request_body(post_body, (int) content_length);
         buf_write(client->cgi_executor->cgi_buffer, (uint8_t*) post_body, content_length);
     }
     CGI_LOG("%s", "Creating new cgi_executor is done")
@@ -929,4 +931,14 @@ void make_full_path(char* uri, char* full_path)
         strcat(full_path, INDEX_FILE);
     }
     HTTP_LOG("full requested path is: %s", full_path)
+}
+
+void print_request_body(char* body, int total_bytes_num)
+{
+    int i;
+    printf("Request body:\n");
+    for (i = 0; i < total_bytes_num; i++) {
+        printf("%c", body[i]);
+    }
+    printf("\n---body end---\n");
 }

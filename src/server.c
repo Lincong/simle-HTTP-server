@@ -181,7 +181,7 @@ int main(int argc, char* argv[])
                             SERVER_LOG("Keep connection %d. But this is the last connection", i)
 
                         } else {
-                            SERVER_LOG("Keep connection %d", i)
+//                            SERVER_LOG("Keep connection %d", i)
 
                         }
                     }
