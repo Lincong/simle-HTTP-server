@@ -131,14 +131,21 @@ int main(int argc, char* argv[])
                     }
 
                     // there are date from the TCP port for this client to read into its receiving buffer
-                    if (curr_client->socket != NO_SOCKET &&
-                        FD_ISSET(curr_client->socket, &read_fds)) {
-                        if (receive_from_peer(curr_client, &echo_received_message) != EXIT_SUCCESS) {
-                            close_client_connection(curr_client);
-                            continue;
-                        }else{
-                            has_read = true;
+                    if (curr_client->socket != NO_SOCKET) {
+                        if (FD_ISSET(curr_client->socket, &read_fds)) {
+                            if (receive_from_peer(curr_client, &echo_received_message) == EXIT_SUCCESS) {
+                                has_read = true;
+
+                            } else {
+                                close_client_connection(curr_client);
+                                continue;
+                            }
                         }
+
+                        // even thought there is no incoming data for this client to read, we can still check if there
+                        // is anything already in the receiving_buffer
+                        if(!buf_empty(&curr_client->receiving_buffer))
+                            has_read = true;
                     }
 
                     // the TCP port is ready to send data out from the sending buffer of the client
