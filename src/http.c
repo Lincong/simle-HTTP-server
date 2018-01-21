@@ -292,7 +292,9 @@ int handle_http(peer_t *peer) {
     }
     HTTP_LOG("%s", "One HTTP request is over. Trying to free and reset states")
     free_request(request);
+    HTTP_LOG("%s", "request is freed")
     reset_http_task(curr_task);
+    HTTP_LOG("%s", "curr_task is reseted")
     return (curr_task->last_request ? CLOSE_CONN : KEEP_CONN);
 }
 
@@ -658,8 +660,14 @@ int stream_file_content(peer_t *peer) {
 }
 
 void free_request(Request *req) {
-    free(req->headers);
-    free(req);
+    if (req != NULL) {
+        if (req->headers != NULL) {
+            free(req->headers);
+            req->headers = NULL;
+        }
+        free(req);
+        req = NULL;
+    }
 }
 
 // CGI
@@ -840,7 +848,7 @@ void execve_error_handler() {
 
 void start_CGI_script(peer_t* client, CGI_param *cgi_parameter, char *post_body, size_t content_length) {
 
-    CGI_LOG("%s", "In handle_dynamic_request(), creating new cgi_executor")
+    CGI_LOG("%s", "In start_CGI_script(), creating new cgi_executor")
     CGI_LOG("%s", "Before assert()")
     assert(client->cgi_executor == NULL); // the cgi_executor should be NULL at this point
     CGI_LOG("%s", "After assert()")
@@ -851,6 +859,7 @@ void start_CGI_script(peer_t* client, CGI_param *cgi_parameter, char *post_body,
     // write body of the POST request to the CGI buffer
     if (content_length > 0) {
         client->cgi_executor->cgi_buffer = (cbuf_t *) malloc(sizeof(cbuf_t));
+        buf_reset(client->cgi_executor->cgi_buffer);
         buf_write(client->cgi_executor->cgi_buffer, (uint8_t*) post_body, content_length);
     }
     CGI_LOG("%s", "Creating new cgi_executor is done")

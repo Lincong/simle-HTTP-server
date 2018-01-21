@@ -170,6 +170,7 @@ void destroy_http_task(http_task_t* http_task)
 
 void reset_http_task(http_task_t* http_task)
 {
+    HTTP_LOG("%s", "In reset_http_task()")
     if(http_task == NULL) return;
     http_task->state = RECV_HEADER_STATE; // initial state
     http_task->parse_buf_idx = 0;
@@ -180,9 +181,12 @@ void reset_http_task(http_task_t* http_task)
     buf_reset(&http_task->response_buf);
     http_task->body_bytes_num = 0;
 
-    if (http_task->post_body != NULL)
+    if (http_task->post_body != NULL) {
         free(http_task->post_body);
+        http_task->post_body = NULL;
+    }
     http_task->post_body_idx = 0;
+    HTTP_LOG("%s", "End reset_http_task()")
 }
 
 /*
@@ -409,6 +413,7 @@ int receive_from_peer(peer_t *peer, int (*message_handler)(peer_t *))
                 return EXIT_FAILURE;
         }
     }
+    HTTP_LOG("%s", "End of receive_from_peer()")
     return EXIT_SUCCESS;
 }
 

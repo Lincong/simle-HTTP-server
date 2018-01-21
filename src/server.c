@@ -178,9 +178,12 @@ int main(int argc, char* argv[])
 
                         } else if(ret == CLOSE_CONN) {
                             curr_client->close_conn = true;
+                            SERVER_LOG("Keep connection %d. But this is the last connection", i)
+
+                        } else {
+                            SERVER_LOG("Keep connection %d", i)
 
                         }
-                        SERVER_LOG("Keep connection %d", i)
                     }
                 }
         }
