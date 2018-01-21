@@ -20,7 +20,8 @@
 #include <fcntl.h>
 #include <sys/time.h>
 
-#define RUN_AS_DAEMON true
+#define LOG_TO_FILE false
+#define RUN_AS_DAEMON false
 #define IS_HTTP_SERVER true // if not a HTTP server, act like an echo server
 #define MAX_CLIENTS 100
 #define NO_SOCKET -1

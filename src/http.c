@@ -586,7 +586,6 @@ int generate_GET_header(http_task_t *http_task, Request *request, bool last_req)
         strcat(fullpath, INDEX_FILE);
         HTTP_LOG("%s", "1")
     }
-    HTTP_LOG("%s", "2")
     HTTP_LOG("full requested path is: %s", fullpath)
 
     if (access(fullpath, F_OK) < 0) {

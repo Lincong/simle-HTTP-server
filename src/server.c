@@ -26,13 +26,7 @@ void init_server(int argc, char* argv[]); // set http port and other parameters
 
 int main(int argc, char* argv[])
 {
-    printf("Before init_server11");
-    printf("In init_server1");
-    printf("In init_server2");
-    printf("In init_server3");
-    printf("In init_server4");
     init_server(argc, argv);
-    printf("After init_server");
     SERVER_LOG("%s", "Setting up signal handlers...")
 
     if (start_listen_socket(BACKLOG, SOCK_REUSE, &http_sock_fd) != 0)
@@ -61,9 +55,9 @@ int main(int argc, char* argv[])
     // loop waiting for input and then write it back
     while (1)
     {
-        SERVER_LOG("%s", "Trying to build fd_set")
+//        SERVER_LOG("%s", "Trying to build fd_set")
         build_fd_sets(http_sock_fd, &read_fds, &write_fds, &except_fds);
-        SERVER_LOG("%s", "Done building fd_set")
+//        SERVER_LOG("%s", "Done building fd_set")
         high_sock = http_sock_fd;
 
         // get the highest file descriptor
@@ -76,9 +70,9 @@ int main(int argc, char* argv[])
                 high_sock = MAX(connection_list[i].cgi_executor->stdout_pipe[0], high_sock);
             }
         }
-        SERVER_LOG("%s", "Selecting...")
+//        SERVER_LOG("%s", "Selecting...")
         int activity = select(high_sock + 1, &read_fds, &write_fds, &except_fds, NULL); // &timeout); //  NULL);
-        SERVER_LOG("%s", "Done selecting")
+//        SERVER_LOG("%s", "Done selecting")
 
         switch (activity) {
             case -1:
@@ -278,22 +272,15 @@ int setup_signals()
 
 void init_server(int argc, char* argv[])
 {
-    printf("In init_server1");
-    printf("In init_server2");
-    printf("In init_server3");
-    printf("In init_server4");
     /* Check usage */
-
     char* log_file;
     char *lock_file;
 
     if (argc < 8) {
         fprintf(stdout, USAGE);
-        fprintf(stdout, "2");
         http_port = 9999;
         WWW_DIR = DEFAULT_WWW_DIR;
         log_file = LOG_FILE_NAME;
-        fprintf(stdout, "1");
     } else {
         /* Read parameters from command line arguments */
         http_port = atoi(argv[1]);   /* port param */
@@ -305,8 +292,6 @@ void init_server(int argc, char* argv[])
         // PRIVATE_KEY_FILE = argv[7]; /* private key file param */
         // CERT_FILE = argv[8];        /* certificate file param */
     }
-    fprintf(stdout, "2");
-    printf("In init_server, after setting variable");
     // check if resources folder exists
     if(!is_dir(WWW_DIR)){
         HTTP_LOG("%s", "WWW path is wrong")
@@ -314,7 +299,12 @@ void init_server(int argc, char* argv[])
     }
 
     printf("Trying to open log_file: %s\n", log_file);
-    log_fd = fopen(log_file, "a+");
+
+    if (LOG_TO_FILE)
+        log_fd = fopen(log_file, "a+");
+    else
+        log_fd = stdout;
+
     if(log_fd == NULL){
         HTTP_LOG("%s", "Open log file failed")
         exit(EXIT_FAILURE);
