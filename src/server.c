@@ -14,6 +14,8 @@ int http_port;
 int https_port;
 char *WWW_DIR;
 char *CGI_scripts;
+char* lock_file;
+char* log_file;
 int http_sock_fd; // a file descriptor for our "listening" socket.
 peer_t connection_list[MAX_CLIENTS];
 
@@ -22,15 +24,26 @@ void handle_signal_action(int sig_number);
 int setup_signals();
 int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds);
 void init_server(int argc, char* argv[]); // set http port and other parameters
-void add_cgi_fd_to_pool(int clientfd, int cgi_fd, client_cgi_state state);
+int daemonize();
 
 int main(int argc, char* argv[])
 {
+    printf("Before init_server11");
+    printf("In init_server1");
+    printf("In init_server2");
+    printf("In init_server3");
+    printf("In init_server4");
     init_server(argc, argv);
+    printf("After init_server");
     SERVER_LOG("%s", "Setting up signal handlers...")
-    if (setup_signals() != 0)
-        exit(EXIT_FAILURE);
-    SERVER_LOG("%s", "Done")
+
+    if (RUN_AS_DAEMON) {
+        daemonize();
+    } else {
+        if (setup_signals() != 0)
+            exit(EXIT_FAILURE);
+        SERVER_LOG("%s", "Done")
+    }
 
     if (start_listen_socket(BACKLOG, SOCK_REUSE, &http_sock_fd) != 0)
         exit(EXIT_FAILURE);
@@ -257,49 +270,99 @@ void handle_signal_action(int sig_number)
 
 int setup_signals()
 {
-    struct sigaction sa;
-    sa.sa_handler = handle_signal_action;
-    if (sigaction(SIGINT, &sa, 0) != 0) {
-        perror("sigaction()");
-        return -1;
-    }
-    if (sigaction(SIGPIPE, &sa, 0) != 0) {
-        perror("sigaction()");
-        return -1;
-    }
-
+//    struct sigaction sa;
+//    sa.sa_handler = handle_signal_action;
+//    if (sigaction(SIGINT, &sa, 0) != 0) {
+//        perror("sigaction()");
+//        return -1;
+//    }
+//    if (sigaction(SIGPIPE, &sa, 0) != 0) {
+//        perror("sigaction()");
+//        return -1;
+//    }
+    signal(SIGINT, handle_signal_action);
+    signal(SIGTERM, handle_signal_action);
+    signal(SIGPIPE, SIG_IGN);
+    signal(SIGHUP, SIG_IGN);
     return 0;
 }
 
 void init_server(int argc, char* argv[])
 {
+    printf("In init_server1");
+    printf("In init_server2");
+    printf("In init_server3");
+    printf("In init_server4");
     /* Check usage */
-    char* log_file;
     if (argc < 8) {
-        fprintf(stdout, USAGE);
+//        fprintf(stdout, USAGE);
+        fprintf(stdout, "2");
         http_port = 9999;
         WWW_DIR = DEFAULT_WWW_DIR;
         log_file = LOG_FILE_NAME;
+        fprintf(stdout, "1");
     } else {
         /* Read parameters from command line arguments */
         http_port = atoi(argv[1]);   /* port param */
         https_port = atoi(argv[2]); /* https port param */
         log_file = argv[3];          /* log file param */
-        // LOCKFILE = argv[4];         /* lock file param */
+        lock_file = argv[4];         /* lock file param */
         WWW_DIR = argv[5];       /* www folder param */
         CGI_scripts = argv[6];      /* cgi script param */
         // PRIVATE_KEY_FILE = argv[7]; /* private key file param */
         // CERT_FILE = argv[8];        /* certificate file param */
     }
+    fprintf(stdout, "2");
+    printf("In init_server, after setting variable");
     // check if resources folder exists
     if(!is_dir(WWW_DIR)){
         HTTP_LOG("%s", "WWW path is wrong")
         exit(EXIT_FAILURE);
     }
 
-    log_fd = fopen(log_file, "a+");
+    SERVER_LOG("Trying to open log_file: %s", log_file)
+    printf("Trying to open log_file: %s", log_file);
+    log_fd = fopen(log_file, "w"); // open a file and start writing to it from its beginning
     if(log_fd == NULL){
         HTTP_LOG("%s", "Open log file failed")
         exit(EXIT_FAILURE);
     }
+}
+
+int daemonize() {
+    int i, lfp, pid = fork();
+    char str[256] = {0};
+    if (pid < 0) exit(EXIT_FAILURE);
+    if (pid > 0) exit(EXIT_SUCCESS);
+
+    setsid();
+
+    for (i = getdtablesize(); i>=0; i--)
+        close(i);
+
+    i = open("/dev/null", O_RDWR);
+    dup(i); /* stdout */
+    dup(i); /* stderr */
+    umask(027); // change file permission
+    SERVER_LOG("lock_file: %s", lock_file)
+    lfp = open(lock_file, O_RDWR|O_CREAT, 0640);
+
+    if (lfp < 0)
+        exit(EXIT_FAILURE); /* can not open */
+
+    if (lockf(lfp, F_TLOCK, 0) < 0)
+        exit(EXIT_SUCCESS); /* can not lock */
+
+    /* only first instance continues */
+    sprintf(str, "%d\n", getpid());
+    write(lfp, str, strlen(str)); /* record pid to lockfile */
+
+    signal(SIGINT, handle_signal_action);
+    signal(SIGTERM, handle_signal_action);
+    signal(SIGPIPE, SIG_IGN);
+    signal(SIGHUP, SIG_IGN);
+    signal(SIGCHLD, SIG_IGN); /* child terminate signal */
+
+    return EXIT_SUCCESS;
+
 }
