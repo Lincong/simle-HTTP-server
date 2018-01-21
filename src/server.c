@@ -17,6 +17,7 @@ char *CGI_scripts;
 int http_sock_fd; // a file descriptor for our "listening" socket.
 peer_t connection_list[MAX_CLIENTS];
 
+int daemonize(char* lock_file);
 void server_shutdown_properly(int code);
 void handle_signal_action(int sig_number);
 int setup_signals();
@@ -28,9 +29,9 @@ int main(int argc, char* argv[])
 {
     init_server(argc, argv);
     SERVER_LOG("%s", "Setting up signal handlers...")
-    if (setup_signals() != 0)
-        exit(EXIT_FAILURE);
-    SERVER_LOG("%s", "Done")
+//    if (setup_signals() != 0)
+//        exit(EXIT_FAILURE);
+//    SERVER_LOG("%s", "Done")
 
     if (start_listen_socket(BACKLOG, SOCK_REUSE, &http_sock_fd) != 0)
         exit(EXIT_FAILURE);
@@ -47,8 +48,7 @@ int main(int argc, char* argv[])
     fd_set write_fds;
     fd_set except_fds;
     struct timeval timeout;
-    timeout.tv_sec = 0;
-//    timeout.tv_usec = 2000;
+//    timeout.tv_sec = 0;
 
     int high_sock = http_sock_fd;
 
@@ -275,6 +275,7 @@ void init_server(int argc, char* argv[])
 {
     /* Check usage */
     char* log_file;
+    char *lock_file;
     if (argc < 8) {
         fprintf(stdout, USAGE);
         http_port = 9999;
@@ -285,7 +286,7 @@ void init_server(int argc, char* argv[])
         http_port = atoi(argv[1]);   /* port param */
         https_port = atoi(argv[2]); /* https port param */
         log_file = argv[3];          /* log file param */
-        // LOCKFILE = argv[4];         /* lock file param */
+        lock_file = argv[4];         /* lock file param */
         WWW_DIR = argv[5];       /* www folder param */
         CGI_scripts = argv[6];      /* cgi script param */
         // PRIVATE_KEY_FILE = argv[7]; /* private key file param */
@@ -297,9 +298,65 @@ void init_server(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
+    printf("Trying to open log_file: %s\n", log_file);
     log_fd = fopen(log_file, "a+");
     if(log_fd == NULL){
         HTTP_LOG("%s", "Open log file failed")
         exit(EXIT_FAILURE);
     }
+    if(RUN_AS_DAEMON) {
+        fprintf(stdout, "Run server as a daemon process");
+        if (daemonize(lock_file) != EXIT_SUCCESS) {
+            fprintf(stderr, "Daemonizing Lisod fails");
+            exit(EXIT_FAILURE);
+        }
+
+    } else {
+        if (setup_signals() != 0)
+            exit(EXIT_FAILURE);
+        SERVER_LOG("%s", "Done")
+    }
+}
+
+int daemonize(char* lock_file) {
+    if(strlen(lock_file) == 0) {
+        fprintf(stdout, "Illegal lock file name\n");
+        return EXIT_FAILURE;
+    }
+
+    int i, lfp, pid = fork();
+    char str[256] = {0};
+    if (pid < 0) exit(EXIT_FAILURE);
+    if (pid > 0) exit(EXIT_SUCCESS);
+
+    setsid();
+
+    for (i = getdtablesize(); i>=0; i--)
+        close(i);
+
+    i = open("/dev/null", O_RDWR);
+    dup(i); /* stdout */
+    dup(i); /* stderr */
+    umask(027);
+    printf("Trying to open %s\n", lock_file);
+    lfp = open(lock_file, O_RDWR|O_CREAT, 0640);
+
+    if (lfp < 0)
+        exit(EXIT_FAILURE); /* can not open */
+
+    if (lockf(lfp, F_TLOCK, 0) < 0)
+        exit(EXIT_SUCCESS); /* can not lock */
+
+    /* only first instance continues */
+    sprintf(str, "%d\n", getpid());
+    write(lfp, str, strlen(str)); /* record pid to lockfile */
+    close(lfp);
+    signal(SIGINT, handle_signal_action);
+    signal(SIGTERM, handle_signal_action);
+    signal(SIGPIPE, SIG_IGN);
+    signal(SIGHUP, SIG_IGN);
+    signal(SIGCHLD, SIG_IGN); /* child terminate signal */
+
+    return EXIT_SUCCESS;
+
 }
