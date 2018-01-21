@@ -110,7 +110,7 @@ int main(int argc, char* argv[])
                         // client can send data from its CGI buffer to its child CGI process
                         int ret;
                         if (FD_ISSET(cgi_fd, &write_fds)) {
-                            SERVER_LOG("%s", "Try handle send_to_CGI_process()")
+//                            SERVER_LOG("%s", "Try handle send_to_CGI_process()")
                             ret = send_to_CGI_process(curr_client, cgi_fd);
                             if (ret == EXIT_FAILURE) {
                                 SERVER_LOG("%s", "send_to_CGI_process failed. closing connection...")

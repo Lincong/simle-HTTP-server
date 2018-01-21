@@ -216,7 +216,6 @@ void free_CGI_executor(CGI_executor *executor)
         free_CGI_param(executor->cgi_parameter);
         executor->cgi_parameter = NULL;
     }
-
     free(executor);
 }
 
@@ -225,7 +224,8 @@ void free_CGI_param(CGI_param *param)
     int i = 0;
     while (param->envp[i] != NULL) {
         free(param->envp[i]);
-        free(param->args[i]);
+//        if (param->args[i] != NULL)
+//            free(param->args[i]);
         i++;
     }
     free(param);
@@ -305,7 +305,7 @@ int send_to_CGI_process(peer_t* client, int cgi_write_fd)
 
     size_t buf_bytes_cnt = cgi_buf->num_byte;
     ssize_t sent_bytes_cnt;
-    COMM_LOG("In send_to_CGI_process, trying to send %zu bytes", buf_bytes_cnt)
+    COMM_LOG("In send_to_CGI_process(), trying to send %zu bytes", buf_bytes_cnt)
     // read all bytes in the buffer into the temp buffer
     uint8_t data[buf_bytes_cnt];
     buf_read(cgi_buf, data, buf_bytes_cnt);
@@ -349,7 +349,9 @@ int pipe_from_CGI_process_to_client(peer_t* client, int cgi_read_fd)
         // next time when handle_http() is called, restart the state machine to deal with the next HTTP request
         client->http_task->state = FINISHED_STATE;
         // remove the CGI_executor
+//        COMM_LOG("%s", "Before free_CGI_executor()")
         free_CGI_executor(client->cgi_executor);
+//        COMM_LOG("%s", "After free_CGI_executor()")
         client->cgi_executor = NULL;
         return EXIT_SUCCESS;
     }

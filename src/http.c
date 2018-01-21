@@ -33,7 +33,7 @@ void chopN(char *str, size_t n);
 bool starts_with(const char *pre, const char *str);
 void remove_redundancy_from_uri(char* uri);
 void free_request(Request* req);
-
+void make_full_path(char* uri, char* full_path);
 // CGI
 
 //CGI_param *init_CGI_param();
@@ -290,6 +290,7 @@ int handle_http(peer_t *peer) {
 
         }
     }
+    HTTP_LOG("%s", "One HTTP request is over. Trying to free and reset states")
     free_request(request);
     reset_http_task(curr_task);
     return (curr_task->last_request ? CLOSE_CONN : KEEP_CONN);
@@ -574,19 +575,7 @@ int generate_GET_header(http_task_t *http_task, Request *request, bool last_req)
     size_t content_length;
     char content_len_str[16];
 
-    strcpy(fullpath, WWW_DIR);
-
-    HTTP_LOG("%s", "Before remove_redundancy_from_uri")
-    remove_redundancy_from_uri(request->http_uri);
-    HTTP_LOG("%s", "After remove_redundancy_from_uri")
-    strcat(fullpath, request->http_uri);
-    HTTP_LOG("%s", "After strcat()")
-    // for testing
-    if (requested_path_is_dir(fullpath)) { // end with "/"
-        strcat(fullpath, INDEX_FILE);
-        HTTP_LOG("%s", "1")
-    }
-    HTTP_LOG("full requested path is: %s", fullpath)
+    make_full_path(request->http_uri, fullpath);
 
     if (access(fullpath, F_OK) < 0) {
         HTTP_LOG("Path %s can not be accessed", fullpath)
@@ -915,4 +904,20 @@ void *get_in_addr(sockaddr *sa) {
         return &(((sockaddr_in *) sa)->sin_addr);
     }
     return &(((sockaddr_in6 *) sa)->sin6_addr);
+}
+
+void make_full_path(char* uri, char* full_path)
+{
+    HTTP_LOG("Before remove_redundancy_from_uri: %s", request->http_uri)
+    strcpy(full_path, WWW_DIR);
+    remove_redundancy_from_uri(request->http_uri);
+    HTTP_LOG("After remove_redundancy_from_uri: %s", request->http_uri)
+    if (request->http_uri[0] == '/')
+        full_path[strlen(full_path) - 1] = 0;
+    strcat(full_path, request->http_uri);
+    // for testing
+    if (requested_path_is_dir(full_path)) { // end with "/"
+        strcat(full_path, INDEX_FILE);
+    }
+    HTTP_LOG("full requested path is: %s", full_path)
 }
