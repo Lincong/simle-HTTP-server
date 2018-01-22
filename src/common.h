@@ -37,9 +37,6 @@
 #define SOCK_REUSE 1
 
 // parameters to turn on and off logging
-
-// server communication logging
-
 #define SERVER_LOG_ON true
 #define COMM_LOG_ON true
 #define HANDLER_LOG_ON false
@@ -56,9 +53,6 @@
 #define CLOSE_CONN 0 // close connection after the sending buffer becomes empty
 #define CLOSE_CONN_IMMEDIATELY 1 // used when some error happened
 #define KEEP_CONN  2
-#define DO_CGI 3
-#define DO_LAST_CGI 4
-
 
 // HTTP protocol states
 #define RECV_HEADER_STATE 1
@@ -71,15 +65,6 @@
 #define PROCESSING_CGI 8
 
 #define DEFAULT_WWW_DIR "/Users/lincongli/Desktop/CSE124/src/www/"
-
-typedef enum client_cgi_state {
-    INVALID,
-    READY_FOR_READ,
-    READY_FOR_WRITE,
-    WAITING_FOR_CGI,
-    CGI_FOR_READ,
-    CGI_FOR_WRITE
-} client_cgi_state;
 
 typedef struct sockaddr sockaddr;
 typedef struct sockaddr_in sockaddr_in;

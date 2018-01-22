@@ -46,7 +46,6 @@ char *new_string(char *);
 void set_envp_field_by_str (char *, char *, char *, CGI_param*, int);
 void set_envp_field_with_header (Request *, char *, char *, char *, CGI_param*, int);
 
-//void print_executor(CGI_executor *);
 void* get_in_addr(sockaddr *sa);
 
 void execve_error_handler();
@@ -768,18 +767,6 @@ void set_envp_field_with_header(Request *request, char *header, char *envp_name,
     sprintf(buf, "%s=%s", envp_name, value);
     param->envp[index] = new_string(buf);
 }
-
-//void print_executor(CGI_executor *executor) {
-//    CGI_LOG("%s", "------Executor Info-------")
-//    CGI_LOG("Client socket: %d", executor->clientfd);
-//    CGI_LOG("CGI socket to read from %d", executor->stdout_pipe[0])
-//    CGI_LOG("CGI socket to write to %d", executor->stdin_pipe[1])
-//    CGI_LOG("%s", "Buffer state")
-//    CGI_LOG("-- Buffer Offset: %d", executor->cgi_buffer->data)
-//    CGI_LOG("-- Buffer Capacity: %d", executor->cgi_buffer->data)
-//    CGI_LOG("-- Buffer Content: %s", executor->cgi_buffer->data)
-//    CGI_LOG("%s", "-----End Executor Info-----")
-//}
 
 void execve_error_handler() {
     switch (errno) {

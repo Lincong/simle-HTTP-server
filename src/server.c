@@ -182,7 +182,6 @@ int main(int argc, char* argv[])
 
                         } else {
 //                            SERVER_LOG("Keep connection %d", i)
-
                         }
                     }
                 }
@@ -209,27 +208,6 @@ void server_shutdown_properly(int code)
 int build_fd_sets(int listen_sock, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
 {
     int i;
-//
-//    FD_ZERO(read_fds);
-//    FD_SET(STDIN_FILENO, read_fds);
-//    FD_SET(listen_sock, read_fds);
-//    for (i = 0; i < MAX_CLIENTS; ++i)
-//        if (connection_list[i].socket != NO_SOCKET)
-//            FD_SET(connection_list[i].socket, read_fds);
-//
-//    FD_ZERO(write_fds);
-//    for (i = 0; i < MAX_CLIENTS; ++i)
-//        if (connection_list[i].socket != NO_SOCKET) // !buf_empty(&connection_list[i].sending_buffer))
-//            FD_SET(connection_list[i].socket, write_fds);
-//
-//    FD_ZERO(except_fds);
-//    FD_SET(STDIN_FILENO, except_fds);
-//    FD_SET(listen_sock, except_fds);
-//    for (i = 0; i < MAX_CLIENTS; ++i)
-//        if (connection_list[i].socket != NO_SOCKET)
-//            FD_SET(connection_list[i].socket, except_fds);
-
-    //
     FD_ZERO(read_fds);
     FD_SET(listen_sock, read_fds);
     FD_ZERO(write_fds);
@@ -257,22 +235,12 @@ void handle_signal_action(int sig_number)
     }
     else if (sig_number == SIGPIPE) { // there is nobody to receive your data
         printf("SIGPIPE was catched!\n");
-        // server_shutdown_properly(EXIT_SUCCESS);
+         server_shutdown_properly(EXIT_SUCCESS);
     }
 }
 
 int setup_signals()
 {
-//    struct sigaction sa;
-//    sa.sa_handler = handle_signal_action;
-//    if (sigaction(SIGINT, &sa, 0) != 0) {
-//        perror("sigaction()");
-//        return -1;
-//    }
-//    if (sigaction(SIGPIPE, &sa, 0) != 0) {
-//        perror("sigaction()");
-//        return -1;
-//    }
     signal(SIGINT, handle_signal_action);
     signal(SIGTERM, handle_signal_action);
     signal(SIGPIPE, SIG_IGN);
@@ -373,5 +341,4 @@ int daemonize(char* lock_file) {
     signal(SIGCHLD, SIG_IGN); /* child terminate signal */
 
     return EXIT_SUCCESS;
-
 }
